@@ -18,25 +18,17 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { GitBranch, FileText, Users } from 'lucide-react';
-
-interface StoryBranch {
-  id: string;
-  name: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-  isActive: boolean;
-}
+import type { StoryBranchWithMeta } from '@/hooks/useStoryData';
 
 interface BranchVisualizerProps {
-  branches: StoryBranch[];
+  branches: StoryBranchWithMeta[];
   activeBranch: string;
   onBranchSelect: (branchId: string) => void;
 }
 
 const StoryBranchNode = ({ data }: { data: any }) => {
   const isActive = data.isActive;
-  const isMain = data.id === 'main';
+  const isMain = data.is_main;
   
   return (
     <div className="relative">
@@ -73,9 +65,9 @@ const StoryBranchNode = ({ data }: { data: any }) => {
         
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Users className="w-3 h-3" />
-          <span>{data.author}</span>
+          <span>{data.author_name}</span>
           <span>•</span>
-          <span>{data.createdAt.toLocaleDateString()}</span>
+          <span>{new Date(data.created_at).toLocaleDateString()}</span>
         </div>
       </Card>
       <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
@@ -93,27 +85,54 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
   onBranchSelect 
 }) => {
   const initialNodes: Node[] = useMemo(() => {
-    return branches.map((branch, index) => ({
-      id: branch.id,
-      type: 'storyBranch',
-      position: { 
-        x: branch.id === 'main' ? 300 : 100 + (index * 300), 
-        y: branch.id === 'main' ? 100 : 300 
-      },
-      data: {
-        ...branch,
-        isActive: branch.id === activeBranch,
-        onSelect: onBranchSelect,
-      },
-    }));
+    const mainBranch = branches.find(b => b.is_main);
+    const otherBranches = branches.filter(b => !b.is_main);
+
+    const nodes: Node[] = [];
+
+    // Add main branch node
+    if (mainBranch) {
+      nodes.push({
+        id: mainBranch.id,
+        type: 'storyBranch',
+        position: { x: 300, y: 100 },
+        data: {
+          ...mainBranch,
+          isActive: mainBranch.id === activeBranch,
+          onSelect: onBranchSelect,
+        },
+      });
+    }
+
+    // Add other branch nodes
+    otherBranches.forEach((branch, index) => {
+      nodes.push({
+        id: branch.id,
+        type: 'storyBranch',
+        position: { 
+          x: 100 + (index * 300), 
+          y: 300 
+        },
+        data: {
+          ...branch,
+          isActive: branch.id === activeBranch,
+          onSelect: onBranchSelect,
+        },
+      });
+    });
+
+    return nodes;
   }, [branches, activeBranch, onBranchSelect]);
 
   const initialEdges: Edge[] = useMemo(() => {
+    const mainBranch = branches.find(b => b.is_main);
+    if (!mainBranch) return [];
+
     return branches
-      .filter(branch => branch.id !== 'main')
+      .filter(branch => !branch.is_main && branch.parent_branch_id === mainBranch.id)
       .map(branch => ({
-        id: `main-to-${branch.id}`,
-        source: 'main',
+        id: `${mainBranch.id}-to-${branch.id}`,
+        source: mainBranch.id,
         target: branch.id,
         type: 'smoothstep',
         animated: branch.id === activeBranch,
@@ -167,7 +186,7 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
           className="bg-white border border-gray-200 shadow-sm"
           nodeColor={(node) => {
             if (node.data?.isActive) return '#7c73f0';
-            if (node.data?.id === 'main') return '#059669';
+            if (node.data?.is_main) return '#059669';
             return '#6b7280';
           }}
         />

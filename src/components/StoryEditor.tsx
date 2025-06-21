@@ -6,89 +6,120 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { GitBranch, Save, Plus, FileText, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import type { StoryBranchWithMeta } from '@/hooks/useStoryData';
 
-interface StoryBranch {
-  id: string;
-  name: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-  isActive: boolean;
+interface StoryEditorProps {
+  branches: StoryBranchWithMeta[];
+  activeBranch: string;
+  onUpdateContent: (branchId: string, content: string) => Promise<void>;
+  onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
+  onSwitchBranch: (branchId: string) => Promise<void>;
+  onMergeBranch: (sourceBranchId: string, targetBranchId: string) => Promise<boolean>;
 }
 
-const StoryEditor = () => {
-  const [branches, setBranches] = useState<StoryBranch[]>([
-    {
-      id: 'main',
-      name: 'Main Story',
-      content: `Chapter 1: The Beginning
-
-The rain drummed against the window as Sarah stared at the mysterious letter that had arrived that morning. The handwriting was elegant, almost archaic, and the paper felt oddly warm to the touch.
-
-"My dear Sarah," it began, "the time has come for you to learn the truth about your family's legacy. Meet me at the old lighthouse at midnight. Come alone, and bring the amulet your grandmother left you."
-
-Sarah's heart raced. She had always wondered about the strange silver pendant her grandmother had given her before passing away. It seemed to hum with an energy she couldn't explain, and sometimes, in the corner of her eye, she thought she saw it glow.
-
-As evening approached, Sarah found herself torn between curiosity and fear. The lighthouse had been abandoned for decades, and local stories spoke of strange lights and unexplained phenomena. But something deep inside her knew she had to go.
-
-She grabbed her coat, slipped the amulet around her neck, and stepped out into the stormy night...`,
-      author: 'You',
-      createdAt: new Date('2024-01-15'),
-      isActive: true
-    },
-    {
-      id: 'alternate',
-      name: 'Alternate Path: Sarah Ignores the Letter',
-      content: `Chapter 1: The Cautious Choice
-
-Sarah crumpled the mysterious letter and tossed it into the fireplace. She had learned long ago not to trust strange messages from unknown senders. Whatever game someone was playing, she wanted no part of it.
-
-But as the flames consumed the paper, something unexpected happened. The fire turned from orange to deep blue, and for a moment, Sarah could swear she heard whispers in the crackling flames.
-
-The amulet around her neck grew warm, then hot. She quickly removed it, setting it on the mantelpiece. As soon as the pendant left her skin, the fire returned to normal.
-
-Sarah stared at the amulet, her grandmother's final gift. Perhaps ignoring the letter hadn't been the end of the mystery after all. The answers she sought might be closer than she had imagined...`,
-      author: 'Alex',
-      createdAt: new Date('2024-01-16'),
-      isActive: false
-    }
-  ]);
-
-  const [activeBranch, setActiveBranch] = useState<string>('main');
+const StoryEditor: React.FC<StoryEditorProps> = ({
+  branches,
+  activeBranch,
+  onUpdateContent,
+  onCreateBranch,
+  onSwitchBranch,
+  onMergeBranch
+}) => {
   const [newBranchName, setNewBranchName] = useState('');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
   const getCurrentBranch = () => branches.find(b => b.id === activeBranch);
 
   const updateContent = (content: string) => {
-    setBranches(prev => prev.map(branch => 
-      branch.id === activeBranch 
-        ? { ...branch, content }
-        : branch
-    ));
+    // Update content optimistically in local state
+    const currentBranch = getCurrentBranch();
+    if (currentBranch) {
+      currentBranch.content = content;
+    }
   };
 
-  const createNewBranch = () => {
+  const handleSave = async () => {
+    const currentBranch = getCurrentBranch();
+    if (!currentBranch) return;
+
+    setIsSaving(true);
+    try {
+      await onUpdateContent(currentBranch.id, currentBranch.content);
+      toast({
+        title: "Saved!",
+        description: "Your changes have been saved.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save changes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const createNewBranch = async () => {
     if (!newBranchName.trim()) return;
     
-    const currentBranch = getCurrentBranch();
-    const newBranch: StoryBranch = {
-      id: `branch-${Date.now()}`,
-      name: newBranchName,
-      content: currentBranch?.content || '',
-      author: 'You',
-      createdAt: new Date(),
-      isActive: false
-    };
-
-    setBranches(prev => [...prev, newBranch]);
-    setActiveBranch(newBranch.id);
-    setNewBranchName('');
-    setIsCreatingBranch(false);
+    try {
+      const newBranchId = await onCreateBranch(newBranchName);
+      if (newBranchId) {
+        toast({
+          title: "Branch created!",
+          description: `Created new branch: ${newBranchName}`,
+        });
+        setNewBranchName('');
+        setIsCreatingBranch(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create branch.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const switchBranch = (branchId: string) => {
-    setActiveBranch(branchId);
+  const handleMergeBranch = async () => {
+    const currentBranch = getCurrentBranch();
+    const mainBranch = branches.find(b => b.is_main);
+    
+    if (!currentBranch || !mainBranch || currentBranch.is_main) return;
+
+    try {
+      const success = await onMergeBranch(currentBranch.id, mainBranch.id);
+      if (success) {
+        toast({
+          title: "Branch merged!",
+          description: `Merged "${currentBranch.name}" into main story.`,
+        });
+        // Switch to main branch after merge
+        await onSwitchBranch(mainBranch.id);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to merge branch.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const switchBranch = async (branchId: string) => {
+    try {
+      await onSwitchBranch(branchId);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to switch branch.",
+        variant: "destructive",
+      });
+    }
   };
 
   const currentBranch = getCurrentBranch();
@@ -160,9 +191,9 @@ Sarah stared at the amulet, her grandmother's final gift. Perhaps ignoring the l
                 </div>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <Users className="w-3 h-3" />
-                  <span>{branch.author}</span>
+                  <span>{branch.author_name}</span>
                   <span>•</span>
-                  <span>{branch.createdAt.toLocaleDateString()}</span>
+                  <span>{new Date(branch.created_at).toLocaleDateString()}</span>
                 </div>
               </Card>
             ))}
@@ -182,19 +213,31 @@ Sarah stared at the amulet, her grandmother's final gift. Perhaps ignoring the l
                   {currentBranch?.name}
                 </h1>
                 <p className="text-sm text-gray-500">
-                  By {currentBranch?.author} • Last edited {currentBranch?.createdAt.toLocaleDateString()}
+                  By {currentBranch?.author_name} • Last edited {currentBranch ? new Date(currentBranch.updated_at).toLocaleDateString() : ''}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2"
+                onClick={handleSave}
+                disabled={isSaving}
+              >
                 <Save className="w-4 h-4" />
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
-              <Button size="sm" className="bg-story-600 hover:bg-story-700 flex items-center gap-2">
-                <GitBranch className="w-4 h-4" />
-                Merge Branch
-              </Button>
+              {currentBranch && !currentBranch.is_main && (
+                <Button 
+                  size="sm" 
+                  className="bg-story-600 hover:bg-story-700 flex items-center gap-2"
+                  onClick={handleMergeBranch}
+                >
+                  <GitBranch className="w-4 h-4" />
+                  Merge Branch
+                </Button>
+              )}
             </div>
           </div>
         </div>
