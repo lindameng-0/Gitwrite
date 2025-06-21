@@ -1,11 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { GitBranch, Save, Plus, FileText, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import StoryEditorSidebar from './StoryEditorSidebar';
+import StoryEditorHeader from './StoryEditorHeader';
+import StoryEditorContent from './StoryEditorContent';
 import type { StoryBranchWithMeta } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
@@ -131,134 +129,30 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-6 border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Plot Branch Studio</h1>
-          <p className="text-sm text-gray-600">Collaborative story version control</p>
-        </div>
+      <StoryEditorSidebar
+        branches={branches}
+        activeBranch={activeBranch}
+        newBranchName={newBranchName}
+        setNewBranchName={setNewBranchName}
+        isCreatingBranch={isCreatingBranch}
+        setIsCreatingBranch={setIsCreatingBranch}
+        onCreateBranch={createNewBranch}
+        onSwitchBranch={switchBranch}
+      />
 
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <GitBranch className="w-5 h-5 text-story-600" />
-              Story Branches
-            </h2>
-            <Button
-              onClick={() => setIsCreatingBranch(true)}
-              size="sm"
-              className="bg-story-600 hover:bg-story-700"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {isCreatingBranch && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg animate-fade-in">
-              <Input
-                placeholder="Branch name..."
-                value={newBranchName}
-                onChange={(e) => setNewBranchName(e.target.value)}
-                className="mb-2"
-                onKeyPress={(e) => e.key === 'Enter' && createNewBranch()}
-              />
-              <div className="flex gap-2">
-                <Button onClick={createNewBranch} size="sm" className="bg-story-600 hover:bg-story-700">
-                  Create
-                </Button>
-                <Button onClick={() => setIsCreatingBranch(false)} variant="outline" size="sm">
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {branches.map((branch) => (
-              <Card
-                key={branch.id}
-                className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  branch.id === activeBranch 
-                    ? 'border-story-500 bg-story-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-story-300'
-                }`}
-                onClick={() => switchBranch(branch.id)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-medium text-gray-900 text-sm line-clamp-2">
-                    {branch.name}
-                  </h3>
-                  {branch.id === activeBranch && (
-                    <Badge variant="secondary" className="bg-story-100 text-story-800 text-xs">
-                      Active
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Users className="w-3 h-3" />
-                  <span>{branch.author_name}</span>
-                  <span>•</span>
-                  <span>{new Date(branch.created_at).toLocaleDateString()}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Editor */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="w-6 h-6 text-story-600" />
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  {currentBranch?.name}
-                </h1>
-                <p className="text-sm text-gray-500">
-                  By {currentBranch?.author_name} • Last edited {currentBranch ? new Date(currentBranch.updated_at).toLocaleDateString() : ''}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-2"
-                onClick={handleSave}
-                disabled={isSaving}
-              >
-                <Save className="w-4 h-4" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </Button>
-              {currentBranch && !currentBranch.is_main && (
-                <Button 
-                  size="sm" 
-                  className="bg-story-600 hover:bg-story-700 flex items-center gap-2"
-                  onClick={handleMergeBranch}
-                >
-                  <GitBranch className="w-4 h-4" />
-                  Merge Branch
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+        <StoryEditorHeader
+          currentBranch={currentBranch}
+          isSaving={isSaving}
+          onSave={handleSave}
+          onMergeBranch={handleMergeBranch}
+        />
 
-        {/* Editor */}
-        <div className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto">
-            <Textarea
-              ref={textareaRef}
-              value={localContent}
-              onChange={(e) => handleContentChange(e.target.value)}
-              className="w-full h-full min-h-[600px] story-editor text-lg leading-relaxed resize-none border-0 shadow-none focus:ring-0 p-8 bg-white rounded-lg shadow-sm"
-              placeholder="Begin writing your story..."
-            />
-          </div>
-        </div>
+        <StoryEditorContent
+          localContent={localContent}
+          onContentChange={handleContentChange}
+          textareaRef={textareaRef}
+        />
       </div>
     </div>
   );
