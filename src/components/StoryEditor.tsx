@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,16 +28,22 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   const [newBranchName, setNewBranchName] = useState('');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [localContent, setLocalContent] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   const getCurrentBranch = () => branches.find(b => b.id === activeBranch);
 
-  const updateContent = (content: string) => {
-    // Update content optimistically in local state
+  // Update local content when branch changes
+  useEffect(() => {
     const currentBranch = getCurrentBranch();
     if (currentBranch) {
-      currentBranch.content = content;
+      setLocalContent(currentBranch.content);
     }
+  }, [activeBranch, branches]);
+
+  const handleContentChange = (content: string) => {
+    setLocalContent(content);
   };
 
   const handleSave = async () => {
@@ -47,7 +52,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
 
     setIsSaving(true);
     try {
-      await onUpdateContent(currentBranch.id, currentBranch.content);
+      await onUpdateContent(currentBranch.id, localContent);
       toast({
         title: "Saved!",
         description: "Your changes have been saved.",
@@ -246,8 +251,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         <div className="flex-1 p-6">
           <div className="max-w-4xl mx-auto">
             <Textarea
-              value={currentBranch?.content || ''}
-              onChange={(e) => updateContent(e.target.value)}
+              ref={textareaRef}
+              value={localContent}
+              onChange={(e) => handleContentChange(e.target.value)}
               className="w-full h-full min-h-[600px] story-editor text-lg leading-relaxed resize-none border-0 shadow-none focus:ring-0 p-8 bg-white rounded-lg shadow-sm"
               placeholder="Begin writing your story..."
             />
