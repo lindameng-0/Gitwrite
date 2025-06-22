@@ -5,7 +5,7 @@ import type { Database } from '@/integrations/supabase/types';
 type Story = Database['public']['Tables']['stories']['Row'];
 type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
 type Chapter = Database['public']['Tables']['chapters']['Row'];
-type SavePoint = Database['public']['Tables']['save_points']['Row'];
+export type SavePoint = Database['public']['Tables']['save_points']['Row'];
 type ChapterReview = Database['public']['Tables']['chapter_reviews']['Row'];
 
 export interface StoryBranchWithMeta extends StoryBranch {
@@ -89,14 +89,7 @@ export const useStoryData = () => {
         .from('chapters')
         .select(`
           *,
-          chapter_reviews (
-            id,
-            reviewer_name,
-            status,
-            feedback,
-            created_at,
-            updated_at
-          )
+          chapter_reviews (*)
         `)
         .eq('branch_id', activeBranch)
         .order('chapter_order', { ascending: true });
@@ -105,8 +98,8 @@ export const useStoryData = () => {
 
       const chaptersWithReviews: ChapterWithReviews[] = chaptersData.map(chapter => ({
         ...chapter,
-        reviews: chapter.chapter_reviews || [],
-        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every(review => review.status === 'approved')
+        reviews: (chapter.chapter_reviews || []) as ChapterReview[],
+        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every((review: any) => review.status === 'approved')
       }));
 
       setChapters(chaptersWithReviews);
