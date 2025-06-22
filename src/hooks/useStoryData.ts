@@ -1,25 +1,44 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
+type Chapter = Database['public']['Tables']['chapters']['Row'];
+type SavePoint = Database['public']['Tables']['save_points']['Row'];
+type ChapterReview = Database['public']['Tables']['chapter_reviews']['Row'];
 
 export interface StoryBranchWithMeta extends StoryBranch {
   isActive: boolean;
+  chapterCount?: number;
+}
+
+export interface ChapterWithReviews extends Chapter {
+  reviews: ChapterReview[];
+  canMerge: boolean;
 }
 
 export const useStoryData = () => {
   const [story, setStory] = useState<Story | null>(null);
   const [branches, setBranches] = useState<StoryBranchWithMeta[]>([]);
+  const [chapters, setChapters] = useState<ChapterWithReviews[]>([]);
+  const [savePoints, setSavePoints] = useState<SavePoint[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>('');
+  const [activeChapter, setActiveChapter] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   // Load initial data
   useEffect(() => {
     loadStoryData();
   }, []);
+
+  // Load chapters when active branch changes
+  useEffect(() => {
+    if (activeBranch) {
+      loadChapters();
+      loadSavePoints();
+    }
+  }, [activeBranch]);
 
   const loadStoryData = async () => {
     try {
@@ -62,6 +81,211 @@ export const useStoryData = () => {
     }
   };
 
+  const loadChapters = async () => {
+    if (!activeBranch) return;
+
+    try {
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('chapters')
+        .select(`
+          *,
+          chapter_reviews (
+            id,
+            reviewer_name,
+            status,
+            feedback,
+            created_at,
+            updated_at
+          )
+        `)
+        .eq('branch_id', activeBranch)
+        .order('chapter_order', { ascending: true });
+
+      if (chaptersError) throw chaptersError;
+
+      const chaptersWithReviews: ChapterWithReviews[] = chaptersData.map(chapter => ({
+        ...chapter,
+        reviews: chapter.chapter_reviews || [],
+        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every(review => review.status === 'approved')
+      }));
+
+      setChapters(chaptersWithReviews);
+      
+      // Set active chapter to first one if none selected
+      if (chaptersWithReviews.length > 0 && !activeChapter) {
+        setActiveChapter(chaptersWithReviews[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading chapters:', error);
+    }
+  };
+
+  const loadSavePoints = async () => {
+    if (!activeBranch) return;
+
+    try {
+      const { data: savePointsData, error } = await supabase
+        .from('save_points')
+        .select('*')
+        .eq('branch_id', activeBranch)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavePoints(savePointsData || []);
+    } catch (error) {
+      console.error('Error loading save points:', error);
+    }
+  };
+
+  const updateChapterContent = async (chapterId: string, content: string) => {
+    try {
+      const { error } = await supabase
+        .from('chapters')
+        .update({ 
+          content,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chapterId);
+
+      if (error) throw error;
+
+      // Update local state
+      setChapters(prev => prev.map(chapter => 
+        chapter.id === chapterId 
+          ? { ...chapter, content, updated_at: new Date().toISOString() }
+          : chapter
+      ));
+    } catch (error) {
+      console.error('Error updating chapter content:', error);
+      throw error;
+    }
+  };
+
+  const createNewChapter = async (title: string, chapterOrder?: number) => {
+    try {
+      const nextOrder = chapterOrder || (chapters.length > 0 ? Math.max(...chapters.map(c => c.chapter_order)) + 1 : 1);
+      
+      const { data, error } = await supabase
+        .from('chapters')
+        .insert({
+          story_id: '00000000-0000-0000-0000-000000000001',
+          branch_id: activeBranch,
+          title,
+          content: '',
+          chapter_order: nextOrder,
+          author_name: 'You',
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newChapter: ChapterWithReviews = {
+        ...data,
+        reviews: [],
+        canMerge: false
+      };
+
+      setChapters(prev => [...prev, newChapter].sort((a, b) => a.chapter_order - b.chapter_order));
+      setActiveChapter(data.id);
+      
+      return data.id;
+    } catch (error) {
+      console.error('Error creating chapter:', error);
+      return null;
+    }
+  };
+
+  const createSavePoint = async (title: string, description?: string) => {
+    try {
+      const snapshotData = {
+        chapters: chapters.map(chapter => ({
+          id: chapter.id,
+          title: chapter.title,
+          status: chapter.status,
+          word_count: chapter.content.split(' ').length
+        })),
+        total_word_count: chapters.reduce((acc, chapter) => acc + chapter.content.split(' ').length, 0),
+        timestamp: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('save_points')
+        .insert({
+          story_id: '00000000-0000-0000-0000-000000000001',
+          branch_id: activeBranch,
+          title,
+          description,
+          author_name: 'You',
+          snapshot_data: snapshotData
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSavePoints(prev => [data, ...prev]);
+      return data.id;
+    } catch (error) {
+      console.error('Error creating save point:', error);
+      return null;
+    }
+  };
+
+  const submitChapterForReview = async (chapterId: string) => {
+    try {
+      const { error } = await supabase
+        .from('chapters')
+        .update({ status: 'review' })
+        .eq('id', chapterId);
+
+      if (error) throw error;
+
+      setChapters(prev => prev.map(chapter => 
+        chapter.id === chapterId 
+          ? { ...chapter, status: 'review' as const }
+          : chapter
+      ));
+    } catch (error) {
+      console.error('Error submitting chapter for review:', error);
+      throw error;
+    }
+  };
+
+  const reviewChapter = async (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => {
+    try {
+      // Add review
+      const { error: reviewError } = await supabase
+        .from('chapter_reviews')
+        .insert({
+          chapter_id: chapterId,
+          reviewer_name: 'Reviewer', // In real app, this would be current user
+          status,
+          feedback
+        });
+
+      if (reviewError) throw reviewError;
+
+      // Update chapter status if approved
+      if (status === 'approved') {
+        const { error: chapterError } = await supabase
+          .from('chapters')
+          .update({ status: 'approved' })
+          .eq('id', chapterId);
+
+        if (chapterError) throw chapterError;
+      }
+
+      // Reload chapters to get updated reviews
+      await loadChapters();
+    } catch (error) {
+      console.error('Error reviewing chapter:', error);
+      throw error;
+    }
+  };
+
+  // Keep existing branch operations
   const updateBranchContent = async (branchId: string, content: string) => {
     try {
       const { error } = await supabase
@@ -74,7 +298,6 @@ export const useStoryData = () => {
 
       if (error) throw error;
 
-      // Update local state
       setBranches(prev => prev.map(branch => 
         branch.id === branchId 
           ? { ...branch, content, updated_at: new Date().toISOString() }
@@ -111,7 +334,6 @@ export const useStoryData = () => {
       };
 
       setBranches(prev => [...prev, newBranch]);
-      setActiveBranch(data.id);
       
       return data.id;
     } catch (error) {
@@ -122,7 +344,6 @@ export const useStoryData = () => {
 
   const switchToBranch = async (branchId: string) => {
     try {
-      // Update all branches to inactive
       const { error: updateError } = await supabase
         .from('story_branches')
         .update({ is_active: false })
@@ -130,7 +351,6 @@ export const useStoryData = () => {
 
       if (updateError) throw updateError;
 
-      // Set the selected branch as active
       const { error: activateError } = await supabase
         .from('story_branches')
         .update({ is_active: true })
@@ -138,7 +358,6 @@ export const useStoryData = () => {
 
       if (activateError) throw activateError;
 
-      // Update local state
       setBranches(prev => prev.map(branch => ({
         ...branch,
         isActive: branch.id === branchId,
@@ -146,6 +365,7 @@ export const useStoryData = () => {
       })));
 
       setActiveBranch(branchId);
+      setActiveChapter(''); // Reset active chapter when switching branches
     } catch (error) {
       console.error('Error switching branch:', error);
     }
@@ -158,7 +378,6 @@ export const useStoryData = () => {
       
       if (!sourceBranch || !targetBranch) return false;
 
-      // For now, simple merge: append source content to target
       const mergedContent = `${targetBranch.content}\n\n--- Merged from "${sourceBranch.name}" ---\n\n${sourceBranch.content}`;
 
       const { error } = await supabase
@@ -171,7 +390,6 @@ export const useStoryData = () => {
 
       if (error) throw error;
 
-      // Update local state
       setBranches(prev => prev.map(branch => 
         branch.id === targetBranchId 
           ? { ...branch, content: mergedContent, updated_at: new Date().toISOString() }
@@ -188,8 +406,17 @@ export const useStoryData = () => {
   return {
     story,
     branches,
+    chapters,
+    savePoints,
     activeBranch,
+    activeChapter,
     loading,
+    setActiveChapter,
+    updateChapterContent,
+    createNewChapter,
+    createSavePoint,
+    submitChapterForReview,
+    reviewChapter,
     updateBranchContent,
     createNewBranch,
     switchToBranch,

@@ -9,6 +9,146 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      chapter_reviews: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          feedback: string | null
+          id: string
+          reviewer_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          reviewer_name: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          reviewer_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_reviews_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapters: {
+        Row: {
+          author_name: string
+          branch_id: string
+          chapter_order: number
+          content: string
+          created_at: string
+          id: string
+          status: string
+          story_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string
+          branch_id: string
+          chapter_order: number
+          content?: string
+          created_at?: string
+          id?: string
+          status?: string
+          story_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string
+          branch_id?: string
+          chapter_order?: number
+          content?: string
+          created_at?: string
+          id?: string
+          status?: string
+          story_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "story_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapters_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      save_points: {
+        Row: {
+          author_name: string
+          branch_id: string
+          created_at: string
+          description: string | null
+          id: string
+          snapshot_data: Json
+          story_id: string
+          title: string
+        }
+        Insert: {
+          author_name?: string
+          branch_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          snapshot_data: Json
+          story_id: string
+          title: string
+        }
+        Update: {
+          author_name?: string
+          branch_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          snapshot_data?: Json
+          story_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "save_points_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "story_branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "save_points_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stories: {
         Row: {
           created_at: string

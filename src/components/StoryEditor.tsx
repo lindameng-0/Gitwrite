@@ -1,83 +1,92 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import StoryEditorSidebar from './StoryEditorSidebar';
-import StoryEditorHeader from './StoryEditorHeader';
-import StoryEditorContent from './StoryEditorContent';
-import type { StoryBranchWithMeta } from '@/hooks/useStoryData';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { GitBranch, Plus, FileText, Clock, CheckCircle } from 'lucide-react';
+import ChapterEditor from './ChapterEditor';
+import SavePointsPanel from './SavePointsPanel';
+import type { StoryBranchWithMeta, Ch apterWithReviews } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
   branches: StoryBranchWithMeta[];
+  chapters: ChapterWithReviews[];
+  savePoints: any[];
   activeBranch: string;
-  onUpdateContent: (branchId: string, content: string) => Promise<void>;
+  activeChapter: string;
+  onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
+  onCreateChapter: (title: string) => Promise<string | null>;
+  onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
+  onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
   onSwitchBranch: (branchId: string) => Promise<void>;
-  onMergeBranch: (sourceBranchId: string, targetBranchId: string) => Promise<boolean>;
+  onSwitchChapter: (chapterId: string) => void;
 }
 
 const StoryEditor: React.FC<StoryEditorProps> = ({
   branches,
+  chapters,
+  savePoints,
   activeBranch,
-  onUpdateContent,
+  activeChapter,
+  onUpdateChapterContent,
+  onCreateChapter,
+  onCreateSavePoint,
+  onSubmitChapterForReview,
+  onReviewChapter,
   onCreateBranch,
   onSwitchBranch,
-  onMergeBranch
+  onSwitchChapter
 }) => {
+  const [newChapterTitle, setNewChapterTitle] = useState('');
   const [newBranchName, setNewBranchName] = useState('');
+  const [isCreatingChapter, setIsCreatingChapter] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [localContent, setLocalContent] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   const getCurrentBranch = () => branches.find(b => b.id === activeBranch);
+  const getCurrentChapter = () => chapters.find(c => c.id === activeChapter);
 
-  // Update local content when branch changes
-  useEffect(() => {
-    const currentBranch = getCurrentBranch();
-    if (currentBranch) {
-      setLocalContent(currentBranch.content);
-    }
-  }, [activeBranch, branches]);
-
-  const handleContentChange = (content: string) => {
-    setLocalContent(content);
-  };
-
-  const handleSave = async () => {
-    const currentBranch = getCurrentBranch();
-    if (!currentBranch) return;
-
-    setIsSaving(true);
+  const handleCreateChapter = async () => {
+    if (!newChapterTitle.trim()) return;
+    
+    setIsCreatingChapter(true);
     try {
-      await onUpdateContent(currentBranch.id, localContent);
-      toast({
-        title: "Saved!",
-        description: "Your changes have been saved.",
-      });
+      const chapterId = await onCreateChapter(newChapterTitle);
+      if (chapterId) {
+        toast({
+          title: "Chapter created!",
+          description: `Created new chapter: ${newChapterTitle}`,
+        });
+        setNewChapterTitle('');
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save changes.",
+        description: "Failed to create chapter.",
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsCreatingChapter(false);
     }
   };
 
-  const createNewBranch = async () => {
+  const handleCreateBranch = async () => {
     if (!newBranchName.trim()) return;
     
+    setIsCreatingBranch(true);
     try {
-      const newBranchId = await onCreateBranch(newBranchName);
-      if (newBranchId) {
+      const branchId = await onCreateBranch(newBranchName);
+      if (branchId) {
         toast({
           title: "Branch created!",
           description: `Created new branch: ${newBranchName}`,
         });
         setNewBranchName('');
-        setIsCreatingBranch(false);
       }
     } catch (error) {
       toast({
@@ -85,75 +94,221 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         description: "Failed to create branch.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingBranch(false);
     }
   };
 
-  const handleMergeBranch = async () => {
-    const currentBranch = getCurrentBranch();
-    const mainBranch = branches.find(b => b.is_main);
-    
-    if (!currentBranch || !mainBranch || currentBranch.is_main) return;
-
+  const handleUpdateContent = async (chapterId: string, content: string) => {
+    setIsSaving(true);
     try {
-      const success = await onMergeBranch(currentBranch.id, mainBranch.id);
-      if (success) {
-        toast({
-          title: "Branch merged!",
-          description: `Merged "${currentBranch.name}" into main story.`,
-        });
-        // Switch to main branch after merge
-        await onSwitchBranch(mainBranch.id);
-      }
+      await onUpdateChapterContent(chapterId, content);
+      toast({
+        title: "Saved!",
+        description: "Chapter has been saved.",
+      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to merge branch.",
+        description: "Failed to save chapter.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSubmitForReview = async (chapterId: string) => {
+    try {
+      await onSubmitChapterForReview(chapterId);
+      toast({
+        title: "Submitted for review!",
+        description: "Chapter is now awaiting review.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit chapter for review.",
         variant: "destructive",
       });
     }
   };
 
-  const switchBranch = async (branchId: string) => {
+  const handleReviewChapter = async (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => {
     try {
-      await onSwitchBranch(branchId);
+      await onReviewChapter(chapterId, status, feedback);
+      toast({
+        title: "Review submitted!",
+        description: `Chapter ${status === 'approved' ? 'approved' : 'requires changes'}.`,
+      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to switch branch.",
+        description: "Failed to submit review.",
         variant: "destructive",
       });
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'draft': return <FileText className="w-4 h-4" />;
+      case 'review': return <Clock className="w-4 h-4" />;
+      case 'approved': return <CheckCircle className="w-4 h-4" />;
+      case 'merged': return <CheckCircle className="w-4 h-4" />;
+      default: return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'review': return 'bg-yellow-100 text-yellow-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'merged': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const currentBranch = getCurrentBranch();
+  const currentChapter = getCurrentChapter();
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <StoryEditorSidebar
-        branches={branches}
-        activeBranch={activeBranch}
-        newBranchName={newBranchName}
-        setNewBranchName={setNewBranchName}
-        isCreatingBranch={isCreatingBranch}
-        setIsCreatingBranch={setIsCreatingBranch}
-        onCreateBranch={createNewBranch}
-        onSwitchBranch={switchBranch}
+      {/* Left Sidebar - Branches & Chapters */}
+      <div className="w-80 bg-white border-r border-gray-200 shadow-sm">
+        <div className="p-4 border-b border-gray-100">
+          <h1 className="text-lg font-bold text-gray-900 mb-2">Story Branches</h1>
+          
+          {/* Branch Creation */}
+          <div className="mb-4">
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="New branch name..."
+                value={newBranchName}
+                onChange={(e) => setNewBranchName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateBranch()}
+                className="text-sm"
+              />
+              <Button 
+                onClick={handleCreateBranch} 
+                size="sm"
+                disabled={!newBranchName.trim() || isCreatingBranch}
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Branch List */}
+          <div className="space-y-2 mb-4">
+            {branches.map((branch) => (
+              <Card
+                key={branch.id}
+                className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  branch.id === activeBranch 
+                    ? 'border-story-500 bg-story-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-story-300'
+                }`}
+                onClick={() => onSwitchBranch(branch.id)}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <GitBranch className="w-4 h-4 text-story-600" />
+                  <span className="font-medium text-sm">{branch.name}</span>
+                  {branch.id === activeBranch && (
+                    <Badge variant="secondary" className="bg-story-100 text-story-800 text-xs">
+                      Active
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {branch.author_name} • {new Date(branch.created_at).toLocaleDateString()}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Chapters Section */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-800">Chapters</h2>
+            <span className="text-sm text-gray-500">{chapters.length} chapters</span>
+          </div>
+
+          {/* Chapter Creation */}
+          <div className="mb-4">
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="New chapter title..."
+                value={newChapterTitle}
+                onChange={(e) => setNewChapterTitle(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateChapter()}
+                className="text-sm"
+              />
+              <Button 
+                onClick={handleCreateChapter} 
+                size="sm"
+                disabled={!newChapterTitle.trim() || isCreatingChapter}
+                className="bg-story-600 hover:bg-story-700"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Chapter List */}
+          <div className="space-y-2">
+            {chapters.map((chapter) => (
+              <Card
+                key={chapter.id}
+                className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                  chapter.id === activeChapter 
+                    ? 'border-story-500 bg-story-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-story-300'
+                }`}
+                onClick={() => onSwitchChapter(chapter.id)}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {getStatusIcon(chapter.status)}
+                    <span className="font-medium text-sm line-clamp-2">
+                      {chapter.title}
+                    </span>
+                  </div>
+                  <Badge className={`${getStatusColor(chapter.status)} text-xs ml-2 flex-shrink-0`}>
+                    {chapter.status}
+                  </Badge>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Ch. {chapter.chapter_order} • {chapter.author_name}
+                  {chapter.reviews.length > 0 && (
+                    <span className="ml-2">• {chapter.reviews.length} reviews</span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  {chapter.content.split(' ').length} words
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Editor */}
+      <ChapterEditor
+        chapter={currentChapter || null}
+        onContentChange={handleUpdateContent}
+        onSubmitForReview={handleSubmitForReview}
+        onReviewChapter={handleReviewChapter}
+        isSaving={isSaving}
       />
 
-      <div className="flex-1 flex flex-col">
-        <StoryEditorHeader
-          currentBranch={currentBranch}
-          isSaving={isSaving}
-          onSave={handleSave}
-          onMergeBranch={handleMergeBranch}
-        />
-
-        <StoryEditorContent
-          localContent={localContent}
-          onContentChange={handleContentChange}
-          textareaRef={textareaRef}
-        />
-      </div>
+      {/* Right Sidebar - Save Points */}
+      <SavePointsPanel
+        savePoints={savePoints}
+        onCreateSavePoint={onCreateSavePoint}
+      />
     </div>
   );
 };

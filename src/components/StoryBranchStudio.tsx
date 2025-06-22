@@ -10,9 +10,17 @@ const StoryBranchStudio = () => {
   const { 
     story, 
     branches, 
+    chapters,
+    savePoints,
     activeBranch, 
+    activeChapter,
     loading,
-    updateBranchContent,
+    setActiveChapter,
+    updateChapterContent,
+    createNewChapter,
+    createSavePoint,
+    submitChapterForReview,
+    reviewChapter,
     createNewBranch,
     switchToBranch,
     mergeBranch
@@ -46,7 +54,7 @@ const StoryBranchStudio = () => {
               <TabsList className="bg-gray-100">
                 <TabsTrigger value="editor" className="flex items-center gap-2">
                   <FileText className="w-4 h-4" />
-                  Editor
+                  Chapter Editor
                 </TabsTrigger>
                 <TabsTrigger value="visualizer" className="flex items-center gap-2">
                   <Eye className="w-4 h-4" />
@@ -55,7 +63,7 @@ const StoryBranchStudio = () => {
               </TabsList>
             </div>
             <div className="text-sm text-gray-600">
-              {branches.length} branches • {branches.filter(b => b.author_name !== 'You').length} collaborators
+              {branches.length} branches • {chapters.length} chapters • {savePoints.length} save points
             </div>
           </div>
         </div>
@@ -64,11 +72,18 @@ const StoryBranchStudio = () => {
           <TabsContent value="editor" className="h-full m-0">
             <StoryEditor 
               branches={branches}
+              chapters={chapters}
+              savePoints={savePoints}
               activeBranch={activeBranch}
-              onUpdateContent={updateBranchContent}
+              activeChapter={activeChapter}
+              onUpdateChapterContent={updateChapterContent}
+              onCreateChapter={createNewChapter}
+              onCreateSavePoint={createSavePoint}
+              onSubmitChapterForReview={submitChapterForReview}
+              onReviewChapter={reviewChapter}
               onCreateBranch={createNewBranch}
               onSwitchBranch={switchToBranch}
-              onMergeBranch={mergeBranch}
+              onSwitchChapter={setActiveChapter}
             />
           </TabsContent>
           
