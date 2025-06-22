@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { GitBranch, Plus, FileText, Clock, CheckCircle } from 'lucide-react';
 import ChapterEditor from './ChapterEditor';
 import SavePointsPanel from './SavePointsPanel';
-import type { StoryBranchWithMeta, Ch apterWithReviews } from '@/hooks/useStoryData';
+import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
   branches: StoryBranchWithMeta[];
