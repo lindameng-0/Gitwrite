@@ -1,8 +1,8 @@
 
-import StoryBranchStudio from "@/components/StoryBranchStudio";
+import WriterStudio from "@/components/WriterStudio";
 
 const Index = () => {
-  return <StoryBranchStudio />;
+  return <WriterStudio />;
 };
 
 export default Index;

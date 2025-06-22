@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, Plus, FileText, Clock, CheckCircle } from 'lucide-react';
+import { GitBranch, Plus, FileText, Clock, CheckCircle, Book } from 'lucide-react';
 import ChapterEditor from './ChapterEditor';
 import SavePointsPanel from './SavePointsPanel';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
@@ -41,9 +41,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onSwitchChapter
 }) => {
   const [newChapterTitle, setNewChapterTitle] = useState('');
-  const [newBranchName, setNewBranchName] = useState('');
+  const [newVersionName, setNewVersionName] = useState('');
   const [isCreatingChapter, setIsCreatingChapter] = useState(false);
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
@@ -74,27 +74,27 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
     }
   };
 
-  const handleCreateBranch = async () => {
-    if (!newBranchName.trim()) return;
+  const handleCreateVersion = async () => {
+    if (!newVersionName.trim()) return;
     
-    setIsCreatingBranch(true);
+    setIsCreatingVersion(true);
     try {
-      const branchId = await onCreateBranch(newBranchName);
-      if (branchId) {
+      const versionId = await onCreateBranch(newVersionName);
+      if (versionId) {
         toast({
-          title: "Branch created!",
-          description: `Created new branch: ${newBranchName}`,
+          title: "Story version created!",
+          description: `Created new version: ${newVersionName}`,
         });
-        setNewBranchName('');
+        setNewVersionName('');
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create branch.",
+        description: "Failed to create story version.",
         variant: "destructive",
       });
     } finally {
-      setIsCreatingBranch(false);
+      setIsCreatingVersion(false);
     }
   };
 
@@ -173,49 +173,62 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   const currentChapter = getCurrentChapter();
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Left Sidebar - Branches & Chapters */}
+    <div className="flex h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+      {/* Left Sidebar - Story Versions & Chapters */}
       <div className="w-80 bg-white border-r border-gray-200 shadow-sm">
         <div className="p-4 border-b border-gray-100">
-          <h1 className="text-lg font-bold text-gray-900 mb-2">Story Branches</h1>
+          <div className="flex items-center gap-2 mb-4">
+            <GitBranch className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-bold text-gray-900">Story Versions</h2>
+          </div>
           
-          {/* Branch Creation */}
+          {/* Version Creation */}
           <div className="mb-4">
             <div className="flex gap-2 mb-2">
               <Input
-                placeholder="New branch name..."
-                value={newBranchName}
-                onChange={(e) => setNewBranchName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateBranch()}
+                placeholder="New version name (e.g., 'alternate-ending')..."
+                value={newVersionName}
+                onChange={(e) => setNewVersionName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateVersion()}
                 className="text-sm"
               />
               <Button 
-                onClick={handleCreateBranch} 
+                onClick={handleCreateVersion} 
                 size="sm"
-                disabled={!newBranchName.trim() || isCreatingBranch}
+                disabled={!newVersionName.trim() || isCreatingVersion}
+                className="bg-indigo-600 hover:bg-indigo-700"
               >
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
+            <p className="text-xs text-gray-500">
+              Create alternate versions to experiment with different story directions
+            </p>
           </div>
 
-          {/* Branch List */}
+          {/* Version List */}
           <div className="space-y-2 mb-4">
             {branches.map((branch) => (
               <Card
                 key={branch.id}
                 className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   branch.id === activeBranch 
-                    ? 'border-story-500 bg-story-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-story-300'
+                    ? 'border-indigo-500 bg-indigo-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-indigo-300'
                 }`}
                 onClick={() => onSwitchBranch(branch.id)}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <GitBranch className="w-4 h-4 text-story-600" />
-                  <span className="font-medium text-sm">{branch.name}</span>
+                  {branch.is_main ? (
+                    <Book className="w-4 h-4 text-indigo-600" />
+                  ) : (
+                    <GitBranch className="w-4 h-4 text-purple-600" />
+                  )}
+                  <span className="font-medium text-sm">
+                    {branch.is_main ? 'Main Story' : branch.name}
+                  </span>
                   {branch.id === activeBranch && (
-                    <Badge variant="secondary" className="bg-story-100 text-story-800 text-xs">
+                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 text-xs">
                       Active
                     </Badge>
                   )}
@@ -231,7 +244,10 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         {/* Chapters Section */}
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">Chapters</h2>
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-indigo-600" />
+              Chapters
+            </h2>
             <span className="text-sm text-gray-500">{chapters.length} chapters</span>
           </div>
 
@@ -249,7 +265,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                 onClick={handleCreateChapter} 
                 size="sm"
                 disabled={!newChapterTitle.trim() || isCreatingChapter}
-                className="bg-story-600 hover:bg-story-700"
+                className="bg-indigo-600 hover:bg-indigo-700"
               >
                 <Plus className="w-4 h-4" />
               </Button>
@@ -263,30 +279,35 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                 key={chapter.id}
                 className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   chapter.id === activeChapter 
-                    ? 'border-story-500 bg-story-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-story-300'
+                    ? 'border-indigo-500 bg-indigo-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-indigo-300'
                 }`}
                 onClick={() => onSwitchChapter(chapter.id)}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {getStatusIcon(chapter.status)}
+                    <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
                     <span className="font-medium text-sm line-clamp-2">
                       {chapter.title}
                     </span>
                   </div>
-                  <Badge className={`${getStatusColor(chapter.status)} text-xs ml-2 flex-shrink-0`}>
+                  <Badge className={`text-xs ml-2 flex-shrink-0 ${
+                    chapter.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                    chapter.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
+                    chapter.status === 'approved' ? 'bg-green-100 text-green-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
                     {chapter.status}
                   </Badge>
                 </div>
                 <div className="text-xs text-gray-500">
-                  Ch. {chapter.chapter_order} • {chapter.author_name}
+                  Chapter {chapter.chapter_order} • {chapter.author_name}
                   {chapter.reviews.length > 0 && (
-                    <span className="ml-2">• {chapter.reviews.length} reviews</span>
+                    <span className="ml-2">• {chapter.reviews.length} comments</span>
                   )}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {chapter.content.split(' ').length} words
+                  {chapter.content.split(' ').filter(w => w.length > 0).length} words
                 </div>
               </Card>
             ))}
@@ -297,9 +318,54 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       {/* Main Editor */}
       <ChapterEditor
         chapter={currentChapter || null}
-        onContentChange={handleUpdateContent}
-        onSubmitForReview={handleSubmitForReview}
-        onReviewChapter={handleReviewChapter}
+        onContentChange={async (chapterId: string, content: string) => {
+          setIsSaving(true);
+          try {
+            await onUpdateChapterContent(chapterId, content);
+            toast({
+              title: "Saved!",
+              description: "Chapter has been saved.",
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to save chapter.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+        onSubmitForReview={async (chapterId: string) => {
+          try {
+            await onSubmitChapterForReview(chapterId);
+            toast({
+              title: "Submitted for review!",
+              description: "Chapter is now awaiting review.",
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to submit chapter for review.",
+              variant: "destructive",
+            });
+          }
+        }}
+        onReviewChapter={async (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => {
+          try {
+            await onReviewChapter(chapterId, status, feedback);
+            toast({
+              title: "Review submitted!",
+              description: `Chapter ${status === 'approved' ? 'approved' : 'requires changes'}.`,
+            });
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "Failed to submit review.",
+              variant: "destructive",
+            });
+          }
+        }}
         isSaving={isSaving}
       />
 
