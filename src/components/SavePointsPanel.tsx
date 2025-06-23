@@ -5,22 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Save, Plus, GitCommit, Calendar, User } from 'lucide-react';
+import { Save, Plus, GitCommit, Calendar, User, RotateCcw } from 'lucide-react';
+import SavePointRestorationDialog from './SavePointRestorationDialog';
 import type { SavePoint } from '@/hooks/useStoryData';
 
 interface SavePointsPanelProps {
   savePoints: SavePoint[];
   onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
+  onRestoreSavePoint?: (savePointId: string) => Promise<boolean>;
 }
 
 const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
   savePoints,
-  onCreateSavePoint
+  onCreateSavePoint,
+  onRestoreSavePoint
 }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [restorationDialog, setRestorationDialog] = useState<{
+    isOpen: boolean;
+    savePoint: SavePoint | null;
+  }>({ isOpen: false, savePoint: null });
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -36,6 +43,11 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleRestore = async (savePointId: string) => {
+    if (!onRestoreSavePoint) return false;
+    return await onRestoreSavePoint(savePointId);
   };
 
   const getSnapshotSummary = (snapshotData: any) => {
@@ -67,7 +79,7 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-        <p className="text-sm text-gray-600">Story snapshots & milestones</p>
+        <p className="text-sm text-gray-600">Story snapshots & restoration</p>
       </div>
 
       <div className="p-4">
@@ -119,7 +131,7 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
             savePoints.map((savePoint) => {
               const summary = getSnapshotSummary(savePoint.snapshot_data);
               return (
-                <Card key={savePoint.id} className="p-3 hover:shadow-md transition-shadow">
+                <Card key={savePoint.id} className="p-3 hover:shadow-md transition-shadow group">
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-2 h-2 bg-story-600 rounded-full mt-2"></div>
                     <div className="flex-1 min-w-0">
@@ -139,7 +151,7 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
                         <span>{new Date(savePoint.created_at).toLocaleDateString()}</span>
                       </div>
 
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 mb-2">
                         <Badge variant="secondary" className="text-xs">
                           {summary.chapterCount} chapters
                         </Badge>
@@ -152,6 +164,18 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
                           </Badge>
                         )}
                       </div>
+
+                      {onRestoreSavePoint && (
+                        <Button
+                          onClick={() => setRestorationDialog({ isOpen: true, savePoint })}
+                          size="sm"
+                          variant="outline"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                        >
+                          <RotateCcw className="w-3 h-3 mr-1" />
+                          Restore
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -160,6 +184,14 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
           )}
         </div>
       </div>
+
+      {/* Restoration Dialog */}
+      <SavePointRestorationDialog
+        isOpen={restorationDialog.isOpen}
+        onClose={() => setRestorationDialog({ isOpen: false, savePoint: null })}
+        savePoint={restorationDialog.savePoint}
+        onRestore={handleRestore}
+      />
     </div>
   );
 };

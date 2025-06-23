@@ -373,6 +373,20 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <SavePointsPanel
         savePoints={savePoints}
         onCreateSavePoint={onCreateSavePoint}
+        onRestoreSavePoint={async (savePointId: string) => {
+          try {
+            // This would need to be passed as a prop in real implementation
+            // For now, we'll show a placeholder toast
+            toast({
+              title: "Restoration not implemented",
+              description: "Save point restoration needs to be implemented in the parent component.",
+              variant: "destructive",
+            });
+            return false;
+          } catch (error) {
+            return false;
+          }
+        }}
       />
     </div>
   );

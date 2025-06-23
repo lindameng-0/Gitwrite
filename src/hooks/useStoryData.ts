@@ -396,7 +396,14 @@ export const useStoryData = () => {
     }
   };
 
-  const mergeChapter = async (chapterId: string, targetBranchId: string, mergeNote?: string) => {
+  const mergeChapter = async (
+    chapterId: string, 
+    targetBranchId: string, 
+    mode: 'replace' | 'insert' | 'append' = 'append',
+    mergeNote?: string,
+    targetPosition?: number,
+    replaceChapterId?: string
+  ) => {
     try {
       const sourceChapter = chapters.find(c => c.id === chapterId);
       if (!sourceChapter || sourceChapter.status !== 'approved') {
@@ -404,56 +411,146 @@ export const useStoryData = () => {
         return false;
       }
 
-      // Get the target branch to determine the next chapter order
-      const { data: targetChapters, error: targetChaptersError } = await supabase
-        .from('chapters')
-        .select('chapter_order')
-        .eq('branch_id', targetBranchId)
-        .order('chapter_order', { ascending: false })
-        .limit(1);
+      if (mode === 'replace' && replaceChapterId) {
+        // Replace existing chapter
+        const { error: updateError } = await supabase
+          .from('chapters')
+          .update({
+            title: sourceChapter.title,
+            content: sourceChapter.content,
+            author_name: sourceChapter.author_name,
+            status: 'merged',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', replaceChapterId);
 
-      if (targetChaptersError) throw targetChaptersError;
+        if (updateError) throw updateError;
 
-      const nextChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+      } else {
+        // Insert or append new chapter
+        const { data: targetChapters, error: targetChaptersError } = await supabase
+          .from('chapters')
+          .select('chapter_order')
+          .eq('branch_id', targetBranchId)
+          .order('chapter_order', { ascending: false })
+          .limit(1);
 
-      // Create a new chapter in the target branch
-      const { error: insertError } = await supabase
-        .from('chapters')
-        .insert({
-          story_id: sourceChapter.story_id,
-          branch_id: targetBranchId,
-          title: sourceChapter.title,
-          content: sourceChapter.content,
-          chapter_order: nextChapterOrder,
-          author_name: sourceChapter.author_name,
-          status: 'merged'
-        });
+        if (targetChaptersError) throw targetChaptersError;
 
-      if (insertError) throw insertError;
+        let newChapterOrder: number;
+        
+        if (mode === 'insert' && targetPosition) {
+          // Update order of existing chapters at or after target position
+          const { error: updateOrderError } = await supabase
+            .from('chapters')
+            .update({ 
+              chapter_order: supabase.rpc('increment_chapter_order')
+            })
+            .eq('branch_id', targetBranchId)
+            .gte('chapter_order', targetPosition);
 
-      // Update the source chapter status to indicate it was merged
-      const { error: updateError } = await supabase
+          if (updateOrderError) throw updateOrderError;
+          newChapterOrder = targetPosition;
+        } else {
+          // Append mode
+          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+        }
+
+        // Create new chapter
+        const { error: insertError } = await supabase
+          .from('chapters')
+          .insert({
+            story_id: sourceChapter.story_id,
+            branch_id: targetBranchId,
+            title: sourceChapter.title,
+            content: sourceChapter.content,
+            chapter_order: newChapterOrder,
+            author_name: sourceChapter.author_name,
+            status: 'merged'
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      // Update source chapter status
+      const { error: updateSourceError } = await supabase
         .from('chapters')
         .update({ status: 'merged' })
         .eq('id', chapterId);
 
-      if (updateError) throw updateError;
+      if (updateSourceError) throw updateSourceError;
 
-      // Create a save point to record this merge
+      // Create save point
       const sourceBranch = branches.find(b => b.id === activeBranch);
       const targetBranch = branches.find(b => b.id === targetBranchId);
       
       await createSavePoint(
-        `Merged "${sourceChapter.title}" from ${sourceBranch?.name || 'branch'} to ${targetBranch?.name || 'Main Story'}`,
+        `${mode === 'replace' ? 'Replaced' : mode === 'insert' ? 'Inserted' : 'Added'} "${sourceChapter.title}" from ${sourceBranch?.name || 'branch'} to ${targetBranch?.name || 'Main Story'}`,
         mergeNote
       );
 
-      // Reload chapters to reflect the changes
+      // Reload chapters
       await loadChapters();
       
       return true;
     } catch (error) {
       console.error('Error merging chapter:', error);
+      return false;
+    }
+  };
+
+  const restoreSavePoint = async (savePointId: string) => {
+    try {
+      const savePoint = savePoints.find(sp => sp.id === savePointId);
+      if (!savePoint) {
+        console.error('Save point not found');
+        return false;
+      }
+
+      const snapshotData = typeof savePoint.snapshot_data === 'string' 
+        ? JSON.parse(savePoint.snapshot_data) 
+        : savePoint.snapshot_data;
+
+      // Delete all current chapters in this branch
+      const { error: deleteError } = await supabase
+        .from('chapters')
+        .delete()
+        .eq('branch_id', activeBranch);
+
+      if (deleteError) throw deleteError;
+
+      // Restore chapters from snapshot
+      if (snapshotData.chapters && snapshotData.chapters.length > 0) {
+        const chaptersToRestore = snapshotData.chapters.map((chapter: any, index: number) => ({
+          story_id: '00000000-0000-0000-0000-000000000001',
+          branch_id: activeBranch,
+          title: chapter.title,
+          content: '', // We don't store full content in snapshots
+          chapter_order: index + 1,
+          author_name: 'Restored',
+          status: chapter.status || 'draft'
+        }));
+
+        const { error: insertError } = await supabase
+          .from('chapters')
+          .insert(chaptersToRestore);
+
+        if (insertError) throw insertError;
+      }
+
+      // Create a save point to mark this restoration
+      await createSavePoint(
+        `Restored to: ${savePoint.title}`,
+        `Restored story state from ${new Date(savePoint.created_at).toLocaleString()}`
+      );
+
+      // Reload data
+      await loadChapters();
+      await loadSavePoints();
+      
+      return true;
+    } catch (error) {
+      console.error('Error restoring save point:', error);
       return false;
     }
   };
@@ -555,6 +652,7 @@ export const useStoryData = () => {
     switchToBranch,
     mergeBranch,
     mergeChapter,
-    mergeStoryVersion
+    mergeStoryVersion,
+    restoreSavePoint
   };
 };
