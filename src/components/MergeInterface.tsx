@@ -284,7 +284,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                 </Button>
               </div>
             </DialogContent>
-          </DialogContent>
+          </Dialog>
         </Card>
       )}
     </div>
