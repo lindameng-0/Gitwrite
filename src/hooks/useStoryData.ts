@@ -396,6 +396,146 @@ export const useStoryData = () => {
     }
   };
 
+  const mergeChapter = async (chapterId: string, targetBranchId: string, mergeNote?: string) => {
+    try {
+      const sourceChapter = chapters.find(c => c.id === chapterId);
+      if (!sourceChapter || sourceChapter.status !== 'approved') {
+        console.error('Chapter not found or not approved');
+        return false;
+      }
+
+      // Get the target branch to determine the next chapter order
+      const { data: targetChapters, error: targetChaptersError } = await supabase
+        .from('chapters')
+        .select('chapter_order')
+        .eq('branch_id', targetBranchId)
+        .order('chapter_order', { ascending: false })
+        .limit(1);
+
+      if (targetChaptersError) throw targetChaptersError;
+
+      const nextChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+
+      // Create a new chapter in the target branch
+      const { error: insertError } = await supabase
+        .from('chapters')
+        .insert({
+          story_id: sourceChapter.story_id,
+          branch_id: targetBranchId,
+          title: sourceChapter.title,
+          content: sourceChapter.content,
+          chapter_order: nextChapterOrder,
+          author_name: sourceChapter.author_name,
+          status: 'merged'
+        });
+
+      if (insertError) throw insertError;
+
+      // Update the source chapter status to indicate it was merged
+      const { error: updateError } = await supabase
+        .from('chapters')
+        .update({ status: 'merged' })
+        .eq('id', chapterId);
+
+      if (updateError) throw updateError;
+
+      // Create a save point to record this merge
+      const sourceBranch = branches.find(b => b.id === activeBranch);
+      const targetBranch = branches.find(b => b.id === targetBranchId);
+      
+      await createSavePoint(
+        `Merged "${sourceChapter.title}" from ${sourceBranch?.name || 'branch'} to ${targetBranch?.name || 'Main Story'}`,
+        mergeNote
+      );
+
+      // Reload chapters to reflect the changes
+      await loadChapters();
+      
+      return true;
+    } catch (error) {
+      console.error('Error merging chapter:', error);
+      return false;
+    }
+  };
+
+  const mergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => {
+    try {
+      const sourceBranch = branches.find(b => b.id === sourceBranchId);
+      const targetBranch = branches.find(b => b.id === targetBranchId);
+      
+      if (!sourceBranch || !targetBranch) {
+        console.error('Source or target branch not found');
+        return false;
+      }
+
+      // Get all approved chapters from source branch
+      const { data: sourceChapters, error: sourceChaptersError } = await supabase
+        .from('chapters')
+        .select('*')
+        .eq('branch_id', sourceBranchId)
+        .eq('status', 'approved');
+
+      if (sourceChaptersError) throw sourceChaptersError;
+
+      if (sourceChapters.length === 0) {
+        console.error('No approved chapters to merge');
+        return false;
+      }
+
+      // Get current max chapter order in target branch
+      const { data: targetChapters, error: targetChaptersError } = await supabase
+        .from('chapters')
+        .select('chapter_order')
+        .eq('branch_id', targetBranchId)
+        .order('chapter_order', { ascending: false })
+        .limit(1);
+
+      if (targetChaptersError) throw targetChaptersError;
+
+      let nextChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+
+      // Insert all approved chapters into target branch
+      const chaptersToInsert = sourceChapters.map(chapter => ({
+        story_id: chapter.story_id,
+        branch_id: targetBranchId,
+        title: chapter.title,
+        content: chapter.content,
+        chapter_order: nextChapterOrder++,
+        author_name: chapter.author_name,
+        status: 'merged' as const
+      }));
+
+      const { error: insertError } = await supabase
+        .from('chapters')
+        .insert(chaptersToInsert);
+
+      if (insertError) throw insertError;
+
+      // Update source chapters to merged status
+      const sourceChapterIds = sourceChapters.map(c => c.id);
+      const { error: updateError } = await supabase
+        .from('chapters')
+        .update({ status: 'merged' })
+        .in('id', sourceChapterIds);
+
+      if (updateError) throw updateError;
+
+      // Create a save point to record this merge
+      await createSavePoint(
+        `Merged story version "${sourceBranch.name}" into "${targetBranch.is_main ? 'Main Story' : targetBranch.name}"`,
+        mergeNote
+      );
+
+      // Reload data to reflect changes
+      await loadChapters();
+      
+      return true;
+    } catch (error) {
+      console.error('Error merging story version:', error);
+      return false;
+    }
+  };
+
   return {
     story,
     branches,
@@ -413,6 +553,8 @@ export const useStoryData = () => {
     updateBranchContent,
     createNewBranch,
     switchToBranch,
-    mergeBranch
+    mergeBranch,
+    mergeChapter,
+    mergeStoryVersion
   };
 };

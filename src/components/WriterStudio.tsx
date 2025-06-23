@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitBranch, FileText, Eye, Book } from 'lucide-react';
+import { GitBranch, FileText, Eye, Book, ArrowRightLeft } from 'lucide-react';
 import StoryEditor from './StoryEditor';
 import VersionVisualizer from './VersionVisualizer';
+import MergeInterface from './MergeInterface';
 import { useStoryData } from '@/hooks/useStoryData';
 
 const WriterStudio = () => {
@@ -23,7 +24,9 @@ const WriterStudio = () => {
     reviewChapter,
     createNewBranch,
     switchToBranch,
-    mergeBranch
+    mergeBranch,
+    mergeChapter,
+    mergeStoryVersion
   } = useStoryData();
   
   const [activeTab, setActiveTab] = useState<string>('editor');
@@ -43,6 +46,8 @@ const WriterStudio = () => {
       </div>
     );
   }
+
+  const approvedChaptersCount = chapters.filter(c => c.status === 'approved' && c.canMerge).length;
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
@@ -65,6 +70,15 @@ const WriterStudio = () => {
                 <TabsTrigger value="versions" className="flex items-center gap-2">
                   <GitBranch className="w-4 h-4" />
                   Story Versions
+                </TabsTrigger>
+                <TabsTrigger value="merge" className="flex items-center gap-2">
+                  <ArrowRightLeft className="w-4 h-4" />
+                  Merge & Collaborate
+                  {approvedChaptersCount > 0 && (
+                    <span className="ml-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {approvedChaptersCount}
+                    </span>
+                  )}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -99,6 +113,25 @@ const WriterStudio = () => {
               activeBranch={activeBranch}
               onVersionSelect={handleVersionSelect}
             />
+          </TabsContent>
+
+          <TabsContent value="merge" className="h-full m-0 p-6 overflow-auto">
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Merge & Collaborate</h2>
+                <p className="text-gray-600">
+                  Combine approved chapters and story versions. Merge content between different story branches safely.
+                </p>
+              </div>
+              
+              <MergeInterface
+                branches={branches}
+                chapters={chapters}
+                activeBranch={activeBranch}
+                onMergeChapter={mergeChapter}
+                onMergeStoryVersion={mergeStoryVersion}
+              />
+            </div>
           </TabsContent>
         </div>
       </Tabs>
