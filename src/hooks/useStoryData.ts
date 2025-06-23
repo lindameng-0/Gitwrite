@@ -440,16 +440,25 @@ export const useStoryData = () => {
         let newChapterOrder: number;
         
         if (mode === 'insert' && targetPosition) {
-          // Update order of existing chapters at or after target position
-          const { error: updateOrderError } = await supabase
+          // First, get all chapters that need their order updated
+          const { data: chaptersToUpdate, error: selectError } = await supabase
             .from('chapters')
-            .update({ 
-              chapter_order: supabase.rpc('increment_chapter_order')
-            })
+            .select('id, chapter_order')
             .eq('branch_id', targetBranchId)
             .gte('chapter_order', targetPosition);
 
-          if (updateOrderError) throw updateOrderError;
+          if (selectError) throw selectError;
+
+          // Update each chapter's order individually
+          for (const chapter of chaptersToUpdate || []) {
+            const { error: updateError } = await supabase
+              .from('chapters')
+              .update({ chapter_order: chapter.chapter_order + 1 })
+              .eq('id', chapter.id);
+
+            if (updateError) throw updateError;
+          }
+          
           newChapterOrder = targetPosition;
         } else {
           // Append mode
