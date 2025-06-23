@@ -26,7 +26,8 @@ const WriterStudio = () => {
     switchToBranch,
     mergeBranch,
     mergeChapter,
-    mergeStoryVersion
+    mergeStoryVersion,
+    restoreSavePoint
   } = useStoryData();
   
   const [activeTab, setActiveTab] = useState<string>('editor');
@@ -104,6 +105,7 @@ const WriterStudio = () => {
               onCreateBranch={createNewBranch}
               onSwitchBranch={switchToBranch}
               onSwitchChapter={setActiveChapter}
+              onRestoreSavePoint={restoreSavePoint}
             />
           </TabsContent>
           

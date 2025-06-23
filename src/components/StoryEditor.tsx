@@ -2,27 +2,38 @@ import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, Plus, FileText, Clock, CheckCircle, Book } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Plus, 
+  FileText, 
+  GitBranch, 
+  Send, 
+  CheckCircle, 
+  Clock,
+  BookOpen
+} from 'lucide-react';
 import ChapterEditor from './ChapterEditor';
+import BranchCreationForm from './BranchCreationForm';
 import SavePointsPanel from './SavePointsPanel';
-import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
+import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
   branches: StoryBranchWithMeta[];
   chapters: ChapterWithReviews[];
-  savePoints: any[];
+  savePoints: SavePoint[];
   activeBranch: string;
   activeChapter: string;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
-  onCreateChapter: (title: string) => Promise<string | null>;
+  onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
   onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: (chapterId: string) => void;
+  onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
 }
 
 const StoryEditor: React.FC<StoryEditorProps> = ({
@@ -38,7 +49,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onReviewChapter,
   onCreateBranch,
   onSwitchBranch,
-  onSwitchChapter
+  onSwitchChapter,
+  onRestoreSavePoint
 }) => {
   const [newChapterTitle, setNewChapterTitle] = useState('');
   const [newVersionName, setNewVersionName] = useState('');
@@ -220,7 +232,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               >
                 <div className="flex items-center gap-2 mb-1">
                   {branch.is_main ? (
-                    <Book className="w-4 h-4 text-indigo-600" />
+                    <BookOpen className="w-4 h-4 text-indigo-600" />
                   ) : (
                     <GitBranch className="w-4 h-4 text-purple-600" />
                   )}

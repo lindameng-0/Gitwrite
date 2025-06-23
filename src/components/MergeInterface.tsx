@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { GitBranch, FileText, ArrowRight, CheckCircle, AlertTriangle, GitMerge } from 'lucide-react';
 import SmartMergeDialog, { type MergeMode } from './SmartMergeDialog';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
