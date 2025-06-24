@@ -87,7 +87,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
             <BranchVisualizer 
               branches={branches}
               activeBranch={activeBranch}
-              onSwitchBranch={onSwitchBranch}
+              onBranchSelect={onSwitchBranch}
             />
           </TabsContent>
         </div>
