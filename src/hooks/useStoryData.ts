@@ -42,23 +42,47 @@ export const useStoryData = () => {
 
   const loadStoryData = async () => {
     try {
-      // Load the default story
-      const { data: storyData, error: storyError } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .single();
+      // Load the demo story first, fallback to original if not found
+      let storyData, branchData;
+      
+      try {
+        const { data: demoStory, error: demoError } = await supabase
+          .from('stories')
+          .select('*')
+          .eq('id', '550e8400-e29b-41d4-a716-446655440000')
+          .single();
+        
+        if (demoError) throw demoError;
+        storyData = demoStory;
+        
+        const { data: demoBranches, error: demoBranchError } = await supabase
+          .from('story_branches')
+          .select('*')
+          .eq('story_id', '550e8400-e29b-41d4-a716-446655440000')
+          .order('created_at', { ascending: true });
+        
+        if (demoBranchError) throw demoBranchError;
+        branchData = demoBranches;
+      } catch (demoError) {
+        // Fallback to original story if demo doesn't exist
+        const { data: originalStory, error: originalError } = await supabase
+          .from('stories')
+          .select('*')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .single();
 
-      if (storyError) throw storyError;
+        if (originalError) throw originalError;
+        storyData = originalStory;
 
-      // Load all branches for this story
-      const { data: branchData, error: branchError } = await supabase
-        .from('story_branches')
-        .select('*')
-        .eq('story_id', '00000000-0000-0000-0000-000000000001')
-        .order('created_at', { ascending: true });
+        const { data: originalBranches, error: originalBranchError } = await supabase
+          .from('story_branches')
+          .select('*')
+          .eq('story_id', '00000000-0000-0000-0000-000000000001')
+          .order('created_at', { ascending: true });
 
-      if (branchError) throw branchError;
+        if (originalBranchError) throw originalBranchError;
+        branchData = originalBranches;
+      }
 
       setStory(storyData);
       
@@ -180,12 +204,13 @@ export const useStoryData = () => {
 
   const createNewChapter = async (title: string, chapterOrder?: number) => {
     try {
+      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const nextOrder = chapterOrder || (chapters.length > 0 ? Math.max(...chapters.map(c => c.chapter_order)) + 1 : 1);
       
       const { data, error } = await supabase
         .from('chapters')
         .insert({
-          story_id: '00000000-0000-0000-0000-000000000001',
+          story_id: currentStoryId,
           branch_id: activeBranch,
           title,
           content: '',
@@ -216,6 +241,7 @@ export const useStoryData = () => {
 
   const createSavePoint = async (title: string, description?: string) => {
     try {
+      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const snapshotData = {
         chapters: chapters.map(chapter => ({
           id: chapter.id,
@@ -230,7 +256,7 @@ export const useStoryData = () => {
       const { data, error } = await supabase
         .from('save_points')
         .insert({
-          story_id: '00000000-0000-0000-0000-000000000001',
+          story_id: currentStoryId,
           branch_id: activeBranch,
           title,
           description,
@@ -302,7 +328,6 @@ export const useStoryData = () => {
     }
   };
 
-  // Keep existing branch operations
   const updateBranchContent = async (branchId: string, content: string) => {
     try {
       const { error } = await supabase
@@ -327,12 +352,13 @@ export const useStoryData = () => {
 
   const createNewBranch = async (name: string, parentBranchId?: string) => {
     try {
+      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const parentBranch = branches.find(b => b.id === (parentBranchId || activeBranch));
       
       const { data, error } = await supabase
         .from('story_branches')
         .insert({
-          story_id: '00000000-0000-0000-0000-000000000001',
+          story_id: currentStoryId,
           name,
           content: parentBranch?.content || '',
           author_name: 'You',
@@ -361,10 +387,12 @@ export const useStoryData = () => {
 
   const switchToBranch = async (branchId: string) => {
     try {
+      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
+      
       const { error: updateError } = await supabase
         .from('story_branches')
         .update({ is_active: false })
-        .eq('story_id', '00000000-0000-0000-0000-000000000001');
+        .eq('story_id', currentStoryId);
 
       if (updateError) throw updateError;
 
@@ -565,7 +593,7 @@ export const useStoryData = () => {
       // Restore chapters from snapshot
       if (snapshotData.chapters && snapshotData.chapters.length > 0) {
         const chaptersToRestore = snapshotData.chapters.map((chapter: any, index: number) => ({
-          story_id: '00000000-0000-0000-0000-000000000001',
+          story_id: story?.id || '550e8400-e29b-41d4-a716-446655440000',
           branch_id: activeBranch,
           title: chapter.title,
           content: '', // We don't store full content in snapshots

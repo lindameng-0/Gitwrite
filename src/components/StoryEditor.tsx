@@ -30,6 +30,8 @@ interface StoryEditorProps {
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
   onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
+  onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
+  onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
 }
 
 interface ChapterContentProps {
@@ -84,24 +86,38 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
+      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge className={`text-xs ${
+              chapter.status === 'approved' ? 'bg-green-100 text-green-800' :
+              chapter.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {chapter.status}
+            </Badge>
+            <span className="text-sm text-gray-500">by {chapter.author_name}</span>
+          </div>
+        </div>
         <div className="space-x-2">
           <Button size="sm" onClick={handleSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
-          <Button size="sm" variant="secondary" onClick={handleSubmitForReview}>
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Submit for Review
-          </Button>
+          {chapter.status === 'draft' && (
+            <Button size="sm" variant="secondary" onClick={handleSubmitForReview}>
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Submit for Review
+            </Button>
+          )}
         </div>
       </div>
       <div className="p-4 flex-1 overflow-y-auto">
         <Textarea
           value={content}
           onChange={handleContentChange}
-          className="w-full h-full resize-none focus:outline-none bg-white border-gray-200"
+          className="w-full h-full resize-none focus:outline-none bg-white border-gray-200 text-gray-900"
           placeholder="Begin writing your chapter..."
         />
       </div>
@@ -121,7 +137,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
 
   if (!chapter) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-white">
         <Card className="p-6 text-center">
           <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
@@ -155,94 +171,40 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
-  onLoadTargetChapters
+  onLoadTargetChapters,
+  onMergeChapter,
+  onMergeStoryVersion
 }) => {
-  const [isCreatingChapter, setIsCreatingChapter] = useState(false);
-  const [newChapterTitle, setNewChapterTitle] = useState('');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const { toast } = useToast()
 
-  const handleCreateChapter = async () => {
-    setIsCreatingChapter(true);
-    try {
-      if (!newChapterTitle.trim()) {
-        toast({
-          variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: "Title cannot be empty",
-        })
-        return;
-      }
-      await onCreateChapter(newChapterTitle);
-      setNewChapterTitle('');
-    } catch (error) {
-       toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-    } finally {
-      setIsCreatingChapter(false);
-    }
-  };
-
   const handleCreateBranch = async () => {
-    setIsCreatingBranch(true);
+    if (!newBranchName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Branch name required",
+        description: "Please enter a name for the new branch.",
+      })
+      return;
+    }
+    
     try {
-      if (!newBranchName.trim()) {
-         toast({
-          variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: "Branch name cannot be empty",
+      const branchId = await onCreateBranch(newBranchName);
+      if (branchId) {
+        setNewBranchName('');
+        setIsCreatingBranch(false);
+        toast({
+          title: "Branch created",
+          description: `Successfully created branch "${newBranchName}".`,
         })
-        return;
       }
-      await onCreateBranch(newBranchName);
-      setNewBranchName('');
-    } catch (error) {
-       toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-    } finally {
-      setIsCreatingBranch(false);
-    }
-  };
-
-  const handleMergeChapter = async (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string): Promise<boolean> => {
-    try {
-      await onUpdateChapterContent(chapterId, 'MERGED');
-      toast({
-        title: "Chapter merged",
-        description: "Chapter merged successfully",
-      })
-      return true;
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
+        title: "Failed to create branch",
+        description: "There was a problem creating the branch.",
       })
-      return false;
-    }
-  };
-
-  const handleMergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string): Promise<boolean> => {
-    try {
-      toast({
-        title: "Story version merged",
-        description: "Story version merged successfully",
-      })
-      return true;
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: "There was a problem with your request.",
-      })
-      return false;
     }
   };
 
@@ -308,8 +270,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                   branches={branches}
                   chapters={chapters}
                   activeBranch={activeBranch}
-                  onMergeChapter={handleMergeChapter}
-                  onMergeStoryVersion={handleMergeStoryVersion}
+                  onMergeChapter={onMergeChapter}
+                  onMergeStoryVersion={onMergeStoryVersion}
                   onLoadTargetChapters={onLoadTargetChapters}
                 />
               </TabsContent>

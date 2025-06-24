@@ -1,3 +1,4 @@
+
 import React from 'react';
 import StoryBranchStudio from './StoryBranchStudio';
 import { useStoryData } from '@/hooks/useStoryData';
@@ -28,40 +29,15 @@ const WriterStudio = () => {
   } = useStoryData();
 
   if (loading) {
-    return <div>Loading story data...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading story data...</p>
+        </div>
+      </div>
+    );
   }
-
-  const handleMergeChapter = async (
-    chapterId: string,
-    targetBranchId: string,
-    mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback',
-    mergeNote?: string,
-    targetPosition?: number,
-    replaceChapterId?: string
-  ) => {
-    try {
-      await mergeChapter(chapterId, targetBranchId, mode, mergeNote, targetPosition, replaceChapterId);
-    } catch (error) {
-      console.error('Error merging chapter in WriterStudio:', error);
-    }
-  };
-
-  const handleMergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => {
-    try {
-      await mergeStoryVersion(sourceBranchId, targetBranchId, mergeNote);
-    } catch (error) {
-      console.error('Error merging story version in WriterStudio:', error);
-    }
-  };
-
-  const onLoadTargetChapters = async (branchId: string) => {
-    try {
-      return await loadChaptersFromBranch(branchId);
-    } catch (error) {
-      console.error('Error loading target chapters in WriterStudio:', error);
-      return [];
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,6 +57,8 @@ const WriterStudio = () => {
         onSwitchChapter={setActiveChapter}
         onRestoreSavePoint={restoreSavePoint}
         onLoadTargetChapters={loadChaptersFromBranch}
+        onMergeChapter={mergeChapter}
+        onMergeStoryVersion={mergeStoryVersion}
       />
     </div>
   );
