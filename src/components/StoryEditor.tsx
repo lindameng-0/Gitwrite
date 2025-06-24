@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -275,13 +276,13 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizablePanel defaultSize={25} minSize={20}>
         <StoryEditorSidebar
           branches={branches}
-          chapters={chapters}
           activeBranch={activeBranch}
-          activeChapter={activeChapter}
-          onCreateChapter={onCreateChapter}
-          onCreateBranch={onCreateBranch}
+          newBranchName={newBranchName}
+          setNewBranchName={setNewBranchName}
+          isCreatingBranch={isCreatingBranch}
+          setIsCreatingBranch={setIsCreatingBranch}
+          onCreateBranch={handleCreateBranch}
           onSwitchBranch={onSwitchBranch}
-          onSwitchChapter={onSwitchChapter}
         />
       </ResizablePanel>
       
