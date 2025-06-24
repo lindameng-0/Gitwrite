@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,7 @@ interface StoryBranchStudioProps {
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
+  onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -43,7 +43,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onCreateBranch,
   onSwitchBranch,
   onSwitchChapter,
-  onRestoreSavePoint
+  onRestoreSavePoint,
+  onLoadTargetChapters
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
 
@@ -80,6 +81,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onSwitchBranch={onSwitchBranch}
               onSwitchChapter={onSwitchChapter}
               onRestoreSavePoint={onRestoreSavePoint}
+              onLoadTargetChapters={onLoadTargetChapters}
             />
           </TabsContent>
           

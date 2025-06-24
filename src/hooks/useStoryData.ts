@@ -113,6 +113,30 @@ export const useStoryData = () => {
     }
   };
 
+  const loadChaptersFromBranch = async (branchId: string): Promise<ChapterWithReviews[]> => {
+    try {
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('chapters')
+        .select(`
+          *,
+          chapter_reviews (*)
+        `)
+        .eq('branch_id', branchId)
+        .order('chapter_order', { ascending: true });
+
+      if (chaptersError) throw chaptersError;
+
+      return chaptersData.map(chapter => ({
+        ...chapter,
+        reviews: (chapter.chapter_reviews || []) as ChapterReview[],
+        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every((review: any) => review.status === 'approved')
+      }));
+    } catch (error) {
+      console.error('Error loading chapters from branch:', error);
+      return [];
+    }
+  };
+
   const loadSavePoints = async () => {
     if (!activeBranch) return;
 
@@ -399,7 +423,7 @@ export const useStoryData = () => {
   const mergeChapter = async (
     chapterId: string, 
     targetBranchId: string, 
-    mode: 'replace' | 'insert' | 'append' = 'append',
+    mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback' = 'append',
     mergeNote?: string,
     targetPosition?: number,
     replaceChapterId?: string
@@ -427,7 +451,7 @@ export const useStoryData = () => {
         if (updateError) throw updateError;
 
       } else {
-        // Insert or append new chapter
+        // Insert, append, subplot, or flashback
         const { data: targetChapters, error: targetChaptersError } = await supabase
           .from('chapters')
           .select('chapter_order')
@@ -438,6 +462,7 @@ export const useStoryData = () => {
         if (targetChaptersError) throw targetChaptersError;
 
         let newChapterOrder: number;
+        let chapterTitle = sourceChapter.title;
         
         if (mode === 'insert' && targetPosition) {
           // First, get all chapters that need their order updated
@@ -460,6 +485,14 @@ export const useStoryData = () => {
           }
           
           newChapterOrder = targetPosition;
+        } else if (mode === 'subplot') {
+          // For subplot, we might want to add a prefix to the title
+          chapterTitle = `[Subplot] ${sourceChapter.title}`;
+          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+        } else if (mode === 'flashback') {
+          // For flashback, add a prefix
+          chapterTitle = `[Flashback] ${sourceChapter.title}`;
+          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
         } else {
           // Append mode
           newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
@@ -471,7 +504,7 @@ export const useStoryData = () => {
           .insert({
             story_id: sourceChapter.story_id,
             branch_id: targetBranchId,
-            title: sourceChapter.title,
+            title: chapterTitle,
             content: sourceChapter.content,
             chapter_order: newChapterOrder,
             author_name: sourceChapter.author_name,
@@ -494,7 +527,8 @@ export const useStoryData = () => {
       const targetBranch = branches.find(b => b.id === targetBranchId);
       
       await createSavePoint(
-        `${mode === 'replace' ? 'Replaced' : mode === 'insert' ? 'Inserted' : 'Added'} "${sourceChapter.title}" from ${sourceBranch?.name || 'branch'} to ${targetBranch?.name || 'Main Story'}`,
+        `${mode === 'replace' ? 'Replaced' : mode === 'insert' ? 'Inserted' : 
+           mode === 'subplot' ? 'Added subplot' : mode === 'flashback' ? 'Added flashback' : 'Added'} "${sourceChapter.title}" from ${sourceBranch?.name || 'branch'} to ${targetBranch?.name || 'Main Story'}`,
         mergeNote
       );
 
@@ -662,6 +696,7 @@ export const useStoryData = () => {
     mergeBranch,
     mergeChapter,
     mergeStoryVersion,
-    restoreSavePoint
+    restoreSavePoint,
+    loadChaptersFromBranch
   };
 };

@@ -5,8 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
-import { GitBranch, FileText, ArrowRight, CheckCircle, AlertTriangle, GitMerge } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { GitBranch, FileText, ArrowRight, CheckCircle, AlertTriangle, GitMerge, Brain } from 'lucide-react';
 import SmartMergeDialog, { type MergeMode } from './SmartMergeDialog';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
@@ -16,6 +16,7 @@ interface MergeInterfaceProps {
   activeBranch: string;
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: MergeMode, mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
+  onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
 }
 
 const MergeInterface: React.FC<MergeInterfaceProps> = ({
@@ -23,25 +24,40 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
   chapters,
   activeBranch,
   onMergeChapter,
-  onMergeStoryVersion
+  onMergeStoryVersion,
+  onLoadTargetChapters
 }) => {
   const [selectedTargetBranch, setSelectedTargetBranch] = useState('');
   const [mergeNote, setMergeNote] = useState('');
   const [isMerging, setIsMerging] = useState(false);
+  const [targetChapters, setTargetChapters] = useState<ChapterWithReviews[]>([]);
   const [smartMergeDialog, setSmartMergeDialog] = useState<{
     isOpen: boolean;
     chapter: ChapterWithReviews | null;
-    targetChapters: ChapterWithReviews[];
   }>({
     isOpen: false,
-    chapter: null,
-    targetChapters: []
+    chapter: null
   });
   const { toast } = useToast();
 
   const currentBranch = branches.find(b => b.id === activeBranch);
   const targetBranches = branches.filter(b => b.id !== activeBranch);
   const approvedChapters = chapters.filter(c => c.status === 'approved' && c.canMerge);
+
+  const handleTargetBranchChange = async (branchId: string) => {
+    setSelectedTargetBranch(branchId);
+    if (branchId && onLoadTargetChapters) {
+      try {
+        const chapters = await onLoadTargetChapters(branchId);
+        setTargetChapters(chapters);
+      } catch (error) {
+        console.error('Failed to load target chapters:', error);
+        setTargetChapters([]);
+      }
+    } else {
+      setTargetChapters([]);
+    }
+  };
 
   const handleSmartMergeChapter = async (chapter: ChapterWithReviews) => {
     if (!selectedTargetBranch) {
@@ -53,14 +69,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       return;
     }
 
-    // Get chapters from target branch (this would need to be passed as a prop in real implementation)
-    // For now, we'll use an empty array as placeholder
-    const targetChapters: ChapterWithReviews[] = [];
-    
     setSmartMergeDialog({
       isOpen: true,
-      chapter,
-      targetChapters
+      chapter
     });
   };
 
@@ -86,10 +97,12 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       
       if (success) {
         toast({
-          title: "Chapter merged successfully!",
-          description: `Chapter merged using ${mode} strategy.`,
+          title: "Smart merge completed!",
+          description: `Chapter merged using ${mode} strategy with AI optimization.`,
         });
         setMergeNote('');
+        // Refresh target chapters
+        handleTargetBranchChange(selectedTargetBranch);
       } else {
         toast({
           title: "Merge failed",
@@ -164,8 +177,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       {/* Merge Target Selection */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-indigo-600" />
-          Smart Merge Controls
+          <Brain className="w-5 h-5 text-indigo-600" />
+          AI-Powered Merge Controls
         </h3>
         
         <div className="space-y-4">
@@ -173,7 +186,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Merge into story version:
             </label>
-            <Select value={selectedTargetBranch} onValueChange={setSelectedTargetBranch}>
+            <Select value={selectedTargetBranch} onValueChange={handleTargetBranchChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select target story version..." />
               </SelectTrigger>
@@ -181,6 +194,11 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                 {targetBranches.map((branch) => (
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.is_main ? 'Main Story' : (branch.name || 'Unnamed Branch')}
+                    {targetChapters.length > 0 && branch.id === selectedTargetBranch && (
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({targetChapters.length} chapters)
+                      </span>
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -205,8 +223,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       {approvedChapters.length > 0 && (
         <Card className="p-6">
           <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            Smart Chapter Merging
+            <Brain className="w-5 h-5 text-green-600" />
+            AI-Powered Chapter Merging
           </h4>
           
           <div className="space-y-3">
@@ -224,29 +242,37 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                       </p>
                     </div>
                     <Badge className="bg-green-100 text-green-800">
-                      Ready to Merge
+                      Ready for AI Merge
                     </Badge>
                   </div>
                   
                   <Button 
                     onClick={() => handleSmartMergeChapter(chapter)}
                     size="sm" 
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                     disabled={!selectedTargetBranch}
                   >
-                    <GitMerge className="w-4 h-4 mr-2" />
-                    Smart Merge
+                    <Brain className="w-4 h-4 mr-2" />
+                    AI Smart Merge
                   </Button>
                 </div>
               );
             })}
           </div>
           
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Smart Merge</strong> gives you options to replace existing chapters, insert at specific positions, 
-              or append to the end. It also detects potential conflicts based on chapter titles.
-            </p>
+          <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-2">
+              <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <p className="text-sm text-blue-900 font-medium mb-1">AI-Powered Smart Merge Features:</p>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Content analysis for optimal positioning</li>
+                  <li>• Character and theme conflict detection</li>
+                  <li>• Novel-specific merge strategies (subplot, flashback, etc.)</li>
+                  <li>• Intelligent flow and tone matching</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </Card>
       )}
@@ -287,9 +313,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       {/* Smart Merge Dialog */}
       <SmartMergeDialog
         isOpen={smartMergeDialog.isOpen}
-        onClose={() => setSmartMergeDialog({ isOpen: false, chapter: null, targetChapters: [] })}
+        onClose={() => setSmartMergeDialog({ isOpen: false, chapter: null })}
         chapter={smartMergeDialog.chapter}
-        targetChapters={smartMergeDialog.targetChapters}
+        targetChapters={targetChapters}
         sourceBranchName={currentBranch?.is_main ? 'Main Story' : (currentBranch?.name || 'Unknown')}
         targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
           (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}

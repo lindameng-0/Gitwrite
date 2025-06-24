@@ -1,22 +1,16 @@
 import React, { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  FileText, 
-  GitBranch, 
-  Send, 
-  CheckCircle, 
-  Clock,
-  BookOpen
-} from 'lucide-react';
-import ChapterEditor from './ChapterEditor';
-import BranchCreationForm from './BranchCreationForm';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { GitBranch, Plus, FileText, Save, Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast"
+import StoryEditorSidebar from './StoryEditorSidebar';
 import SavePointsPanel from './SavePointsPanel';
+import MergeInterface from './MergeInterface';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
@@ -32,8 +26,142 @@ interface StoryEditorProps {
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
   onSwitchBranch: (branchId: string) => Promise<void>;
-  onSwitchChapter: (chapterId: string) => void;
+  onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
+  onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
+}
+
+interface ChapterContentProps {
+  chapter: ChapterWithReviews;
+  onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
+  onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+}
+
+const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapterContent, onSubmitChapterForReview }) => {
+  const [content, setContent] = useState(chapter.content);
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast()
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateChapterContent(chapter.id, content);
+      toast({
+        title: "Chapter saved",
+        description: "Your chapter has been saved.",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSubmitForReview = async () => {
+    try {
+      await onSubmitChapterForReview(chapter.id);
+      toast({
+        title: "Chapter submitted for review",
+        description: "Your chapter has been submitted for review.",
+      })
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
+        <div className="space-x-2">
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            <Save className="w-4 h-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={handleSubmitForReview}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Submit for Review
+          </Button>
+        </div>
+      </div>
+      <div className="p-4 flex-1 overflow-y-auto">
+        <Textarea
+          value={content}
+          onChange={handleContentChange}
+          className="w-full h-full resize-none focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+};
+
+interface StoryEditorContentProps {
+  chapters: ChapterWithReviews[];
+  activeChapter: string;
+  onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
+  onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+}
+
+const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activeChapter, onUpdateChapterContent, onSubmitChapterForReview }) => {
+  const chapter = chapters.find(c => c.id === activeChapter);
+
+  if (!chapter) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Card className="p-6 text-center">
+          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
+          <p className="text-gray-600">Select a chapter from the sidebar to start writing.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <ChapterContent 
+      chapter={chapter} 
+      onUpdateChapterContent={onUpdateChapterContent}
+      onSubmitChapterForReview={onSubmitChapterForReview}
+    />
+  );
+};
+
+interface StoryEditorSidebarProps {
+  branches: StoryBranchWithMeta[];
+  chapters: ChapterWithReviews[];
+  activeBranch: string;
+  activeChapter: string;
+  onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
+  onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
+  onSwitchBranch: (branchId: string) => Promise<void>;
+  onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
+}
+
+interface SavePointsPanelProps {
+  savePoints: SavePoint[];
+  onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
+  onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
+}
+
+interface MergeInterfaceProps {
+  branches: StoryBranchWithMeta[];
+  chapters: ChapterWithReviews[];
+  activeBranch: string;
+  onMergeChapter: (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
+  onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
+  onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
 }
 
 const StoryEditor: React.FC<StoryEditorProps> = ({
@@ -50,357 +178,162 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onCreateBranch,
   onSwitchBranch,
   onSwitchChapter,
-  onRestoreSavePoint
+  onRestoreSavePoint,
+  onLoadTargetChapters
 }) => {
-  const [newChapterTitle, setNewChapterTitle] = useState('');
-  const [newVersionName, setNewVersionName] = useState('');
   const [isCreatingChapter, setIsCreatingChapter] = useState(false);
-  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
-
-  const getCurrentBranch = () => branches.find(b => b.id === activeBranch);
-  const getCurrentChapter = () => chapters.find(c => c.id === activeChapter);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [newBranchName, setNewBranchName] = useState('');
+  const { toast } = useToast()
 
   const handleCreateChapter = async () => {
-    if (!newChapterTitle.trim()) return;
-    
     setIsCreatingChapter(true);
     try {
-      const chapterId = await onCreateChapter(newChapterTitle);
-      if (chapterId) {
+      if (!newChapterTitle.trim()) {
         toast({
-          title: "Chapter created!",
-          description: `Created new chapter: ${newChapterTitle}`,
-        });
-        setNewChapterTitle('');
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: "Title cannot be empty",
+        })
+        return;
       }
+      await onCreateChapter(newChapterTitle);
+      setNewChapterTitle('');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create chapter.",
+       toast({
         variant: "destructive",
-      });
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
     } finally {
       setIsCreatingChapter(false);
     }
   };
 
-  const handleCreateVersion = async () => {
-    if (!newVersionName.trim()) return;
-    
-    setIsCreatingVersion(true);
+  const handleCreateBranch = async () => {
+    setIsCreatingBranch(true);
     try {
-      const versionId = await onCreateBranch(newVersionName);
-      if (versionId) {
-        toast({
-          title: "Story version created!",
-          description: `Created new version: ${newVersionName}`,
-        });
-        setNewVersionName('');
+      if (!newBranchName.trim()) {
+         toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: "Branch name cannot be empty",
+        })
+        return;
       }
+      await onCreateBranch(newBranchName);
+      setNewBranchName('');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create story version.",
+       toast({
         variant: "destructive",
-      });
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
     } finally {
-      setIsCreatingVersion(false);
+      setIsCreatingBranch(false);
     }
   };
 
-  const handleUpdateContent = async (chapterId: string, content: string) => {
-    setIsSaving(true);
+  const handleMergeChapter = async (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => {
     try {
-      await onUpdateChapterContent(chapterId, content);
-      toast({
-        title: "Saved!",
-        description: "Chapter has been saved.",
-      });
+      await onUpdateChapterContent(chapterId, 'MERGED');
+       toast({
+        title: "Chapter merged",
+        description: "Chapter merged successfully",
+      })
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save chapter.",
+       toast({
         variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
     }
   };
 
-  const handleSubmitForReview = async (chapterId: string) => {
+  const handleMergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => {
     try {
-      await onSubmitChapterForReview(chapterId);
-      toast({
-        title: "Submitted for review!",
-        description: "Chapter is now awaiting review.",
-      });
+       toast({
+        title: "Story version merged",
+        description: "Story version merged successfully",
+      })
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit chapter for review.",
+       toast({
         variant: "destructive",
-      });
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem with your request.",
+      })
     }
   };
-
-  const handleReviewChapter = async (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => {
-    try {
-      await onReviewChapter(chapterId, status, feedback);
-      toast({
-        title: "Review submitted!",
-        description: `Chapter ${status === 'approved' ? 'approved' : 'requires changes'}.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit review.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'draft': return <FileText className="w-4 h-4" />;
-      case 'review': return <Clock className="w-4 h-4" />;
-      case 'approved': return <CheckCircle className="w-4 h-4" />;
-      case 'merged': return <CheckCircle className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'review': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'merged': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const currentBranch = getCurrentBranch();
-  const currentChapter = getCurrentChapter();
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-      {/* Left Sidebar - Story Versions & Chapters */}
-      <div className="w-80 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <GitBranch className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-bold text-gray-900">Story Versions</h2>
-          </div>
-          
-          {/* Version Creation */}
-          <div className="mb-4">
-            <div className="flex gap-2 mb-2">
-              <Input
-                placeholder="New version name (e.g., 'alternate-ending')..."
-                value={newVersionName}
-                onChange={(e) => setNewVersionName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateVersion()}
-                className="text-sm"
-              />
-              <Button 
-                onClick={handleCreateVersion} 
-                size="sm"
-                disabled={!newVersionName.trim() || isCreatingVersion}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+    <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanel defaultSize={25} minSize={20}>
+        <StoryEditorSidebar
+          branches={branches}
+          chapters={chapters}
+          activeBranch={activeBranch}
+          activeChapter={activeChapter}
+          onCreateChapter={onCreateChapter}
+          onCreateBranch={onCreateBranch}
+          onSwitchBranch={onSwitchBranch}
+          onSwitchChapter={onSwitchChapter}
+        />
+      </ResizablePanel>
+      
+      <ResizableHandle />
+      
+      <ResizablePanel defaultSize={50} minSize={30}>
+        <StoryEditorContent
+          chapters={chapters}
+          activeChapter={activeChapter}
+          onUpdateChapterContent={onUpdateChapterContent}
+          onSubmitChapterForReview={onSubmitChapterForReview}
+        />
+      </ResizablePanel>
+      
+      <ResizableHandle />
+      
+      <ResizablePanel defaultSize={25} minSize={20}>
+        <div className="h-full bg-gray-50">
+          <Tabs defaultValue="savepoints" className="h-full flex flex-col">
+            <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm">
+              <TabsList>
+                <TabsTrigger value="savepoints" className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Save Points
+                </TabsTrigger>
+                <TabsTrigger value="merge" className="flex items-center gap-2">
+                  <GitBranch className="w-4 h-4" />
+                  Merge
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <p className="text-xs text-gray-500">
-              Create alternate versions to experiment with different story directions
-            </p>
-          </div>
-
-          {/* Version List */}
-          <div className="space-y-2 mb-4">
-            {branches.map((branch) => (
-              <Card
-                key={branch.id}
-                className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  branch.id === activeBranch 
-                    ? 'border-indigo-500 bg-indigo-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-indigo-300'
-                }`}
-                onClick={() => onSwitchBranch(branch.id)}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {branch.is_main ? (
-                    <BookOpen className="w-4 h-4 text-indigo-600" />
-                  ) : (
-                    <GitBranch className="w-4 h-4 text-purple-600" />
-                  )}
-                  <span className="font-medium text-sm">
-                    {branch.is_main ? 'Main Story' : branch.name}
-                  </span>
-                  {branch.id === activeBranch && (
-                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 text-xs">
-                      Active
-                    </Badge>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {branch.author_name} • {new Date(branch.created_at).toLocaleDateString()}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Chapters Section */}
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              Chapters
-            </h2>
-            <span className="text-sm text-gray-500">{chapters.length} chapters</span>
-          </div>
-
-          {/* Chapter Creation */}
-          <div className="mb-4">
-            <div className="flex gap-2 mb-2">
-              <Input
-                placeholder="New chapter title..."
-                value={newChapterTitle}
-                onChange={(e) => setNewChapterTitle(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateChapter()}
-                className="text-sm"
-              />
-              <Button 
-                onClick={handleCreateChapter} 
-                size="sm"
-                disabled={!newChapterTitle.trim() || isCreatingChapter}
-                className="bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
+            
+            <div className="flex-1 overflow-hidden">
+              <TabsContent value="savepoints" className="h-full m-0 p-4">
+                <SavePointsPanel
+                  savePoints={savePoints}
+                  onCreateSavePoint={onCreateSavePoint}
+                  onRestoreSavePoint={onRestoreSavePoint}
+                />
+              </TabsContent>
+              
+              <TabsContent value="merge" className="h-full m-0 p-4">
+                <MergeInterface
+                  branches={branches}
+                  chapters={chapters}
+                  activeBranch={activeBranch}
+                  onMergeChapter={handleMergeChapter}
+                  onMergeStoryVersion={handleMergeStoryVersion}
+                  onLoadTargetChapters={onLoadTargetChapters}
+                />
+              </TabsContent>
             </div>
-          </div>
-
-          {/* Chapter List */}
-          <div className="space-y-2">
-            {chapters.map((chapter) => (
-              <Card
-                key={chapter.id}
-                className={`p-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  chapter.id === activeChapter 
-                    ? 'border-indigo-500 bg-indigo-50 shadow-sm' 
-                    : 'border-gray-200 hover:border-indigo-300'
-                }`}
-                onClick={() => onSwitchChapter(chapter.id)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                    <span className="font-medium text-sm line-clamp-2">
-                      {chapter.title}
-                    </span>
-                  </div>
-                  <Badge className={`text-xs ml-2 flex-shrink-0 ${
-                    chapter.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                    chapter.status === 'review' ? 'bg-yellow-100 text-yellow-800' :
-                    chapter.status === 'approved' ? 'bg-green-100 text-green-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {chapter.status}
-                  </Badge>
-                </div>
-                <div className="text-xs text-gray-500">
-                  Chapter {chapter.chapter_order} • {chapter.author_name}
-                  {chapter.reviews.length > 0 && (
-                    <span className="ml-2">• {chapter.reviews.length} comments</span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                  {chapter.content.split(' ').filter(w => w.length > 0).length} words
-                </div>
-              </Card>
-            ))}
-          </div>
+          </Tabs>
         </div>
-      </div>
-
-      {/* Main Editor */}
-      <ChapterEditor
-        chapter={currentChapter || null}
-        onContentChange={async (chapterId: string, content: string) => {
-          setIsSaving(true);
-          try {
-            await onUpdateChapterContent(chapterId, content);
-            toast({
-              title: "Saved!",
-              description: "Chapter has been saved.",
-            });
-          } catch (error) {
-            toast({
-              title: "Error",
-              description: "Failed to save chapter.",
-              variant: "destructive",
-            });
-          } finally {
-            setIsSaving(false);
-          }
-        }}
-        onSubmitForReview={async (chapterId: string) => {
-          try {
-            await onSubmitChapterForReview(chapterId);
-            toast({
-              title: "Submitted for review!",
-              description: "Chapter is now awaiting review.",
-            });
-          } catch (error) {
-            toast({
-              title: "Error",
-              description: "Failed to submit chapter for review.",
-              variant: "destructive",
-            });
-          }
-        }}
-        onReviewChapter={async (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => {
-          try {
-            await onReviewChapter(chapterId, status, feedback);
-            toast({
-              title: "Review submitted!",
-              description: `Chapter ${status === 'approved' ? 'approved' : 'requires changes'}.`,
-            });
-          } catch (error) {
-            toast({
-              title: "Error",
-              description: "Failed to submit review.",
-              variant: "destructive",
-            });
-          }
-        }}
-        isSaving={isSaving}
-      />
-
-      {/* Right Sidebar - Save Points */}
-      <SavePointsPanel
-        savePoints={savePoints}
-        onCreateSavePoint={onCreateSavePoint}
-        onRestoreSavePoint={async (savePointId: string) => {
-          try {
-            // This would need to be passed as a prop in real implementation
-            // For now, we'll show a placeholder toast
-            toast({
-              title: "Restoration not implemented",
-              description: "Save point restoration needs to be implemented in the parent component.",
-              variant: "destructive",
-            });
-            return false;
-          } catch (error) {
-            return false;
-          }
-        }}
-      />
-    </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   );
 };
 
