@@ -180,7 +180,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
               <SelectContent>
                 {targetBranches.map((branch) => (
                   <SelectItem key={branch.id} value={branch.id}>
-                    {branch.is_main ? 'Main Story' : branch.name}
+                    {branch.is_main ? 'Main Story' : (branch.name || 'Unnamed Branch')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -210,32 +210,36 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
           </h4>
           
           <div className="space-y-3">
-            {approvedChapters.map((chapter) => (
-              <div key={chapter.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-4 h-4 text-green-600" />
-                  <div>
-                    <h5 className="font-medium text-gray-900">{chapter.title}</h5>
-                    <p className="text-sm text-gray-600">
-                      Chapter {chapter.chapter_order} • {chapter.content.split(' ').filter(w => w.length > 0).length} words
-                    </p>
+            {approvedChapters.map((chapter) => {
+              const wordCount = chapter.content ? chapter.content.split(' ').filter(w => w.length > 0).length : 0;
+              
+              return (
+                <div key={chapter.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-4 h-4 text-green-600" />
+                    <div>
+                      <h5 className="font-medium text-gray-900">{chapter.title || 'Untitled Chapter'}</h5>
+                      <p className="text-sm text-gray-600">
+                        Chapter {chapter.chapter_order} • {wordCount} words
+                      </p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800">
+                      Ready to Merge
+                    </Badge>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">
-                    Ready to Merge
-                  </Badge>
+                  
+                  <Button 
+                    onClick={() => handleSmartMergeChapter(chapter)}
+                    size="sm" 
+                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={!selectedTargetBranch}
+                  >
+                    <GitMerge className="w-4 h-4 mr-2" />
+                    Smart Merge
+                  </Button>
                 </div>
-                
-                <Button 
-                  onClick={() => handleSmartMergeChapter(chapter)}
-                  size="sm" 
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={!selectedTargetBranch}
-                >
-                  <GitMerge className="w-4 h-4 mr-2" />
-                  Smart Merge
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
           
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -284,11 +288,11 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       <SmartMergeDialog
         isOpen={smartMergeDialog.isOpen}
         onClose={() => setSmartMergeDialog({ isOpen: false, chapter: null, targetChapters: [] })}
-        chapter={smartMergeDialog.chapter!}
+        chapter={smartMergeDialog.chapter}
         targetChapters={smartMergeDialog.targetChapters}
-        sourceBranchName={currentBranch?.is_main ? 'Main Story' : currentBranch?.name || 'Unknown'}
+        sourceBranchName={currentBranch?.is_main ? 'Main Story' : (currentBranch?.name || 'Unknown')}
         targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
-          branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown'}
+          (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}
         onMerge={handleMergeWithOptions}
       />
     </div>

@@ -1,71 +1,66 @@
 
 import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitBranch, FileText, Eye } from 'lucide-react';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { GitBranch, Plus, FileText, Save, Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import StoryEditor from './StoryEditor';
 import BranchVisualizer from './BranchVisualizer';
-import { useStoryData } from '@/hooks/useStoryData';
+import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
-const StoryBranchStudio = () => {
-  const { 
-    story, 
-    branches, 
-    chapters,
-    savePoints,
-    activeBranch, 
-    activeChapter,
-    loading,
-    setActiveChapter,
-    updateChapterContent,
-    createNewChapter,
-    createSavePoint,
-    submitChapterForReview,
-    reviewChapter,
-    createNewBranch,
-    switchToBranch,
-    mergeBranch
-  } = useStoryData();
-  
-  const [activeTab, setActiveTab] = useState<string>('editor');
+interface StoryBranchStudioProps {
+  branches: StoryBranchWithMeta[];
+  chapters: ChapterWithReviews[];
+  savePoints: SavePoint[];
+  activeBranch: string;
+  activeChapter: string;
+  onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
+  onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
+  onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
+  onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
+  onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
+  onSwitchBranch: (branchId: string) => Promise<void>;
+  onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
+  onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
+}
 
-  const handleBranchSelect = (branchId: string) => {
-    switchToBranch(branchId);
-    setActiveTab('editor');
-  };
-
-  if (loading) {
-    return (
-      <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-xl text-gray-600">Loading story...</div>
-      </div>
-    );
-  }
+const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
+  branches,
+  chapters,
+  savePoints,
+  activeBranch,
+  activeChapter,
+  onUpdateChapterContent,
+  onCreateChapter,
+  onCreateSavePoint,
+  onSubmitChapterForReview,
+  onReviewChapter,
+  onCreateBranch,
+  onSwitchBranch,
+  onSwitchChapter,
+  onRestoreSavePoint
+}) => {
+  const [activeTab, setActiveTab] = useState('editor');
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="h-full bg-gradient-to-br from-blue-50 to-indigo-50">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <GitBranch className="w-6 h-6 text-story-600" />
-                <h1 className="text-xl font-bold text-gray-900">Plot Branch Studio</h1>
-              </div>
-              <TabsList className="bg-gray-100">
-                <TabsTrigger value="editor" className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Chapter Editor
-                </TabsTrigger>
-                <TabsTrigger value="visualizer" className="flex items-center gap-2">
-                  <Eye className="w-4 h-4" />
-                  Branch View
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            <div className="text-sm text-gray-600">
-              {branches.length} branches • {chapters.length} chapters • {savePoints.length} save points
-            </div>
-          </div>
+        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+          <TabsList className="bg-gray-100">
+            <TabsTrigger value="editor" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Story Editor
+            </TabsTrigger>
+            <TabsTrigger value="branches" className="flex items-center gap-2">
+              <GitBranch className="w-4 h-4" />
+              Branch Visualizer
+            </TabsTrigger>
+          </TabsList>
         </div>
 
         <div className="flex-1 overflow-hidden">
@@ -76,22 +71,23 @@ const StoryBranchStudio = () => {
               savePoints={savePoints}
               activeBranch={activeBranch}
               activeChapter={activeChapter}
-              onUpdateChapterContent={updateChapterContent}
-              onCreateChapter={createNewChapter}
-              onCreateSavePoint={createSavePoint}
-              onSubmitChapterForReview={submitChapterForReview}
-              onReviewChapter={reviewChapter}
-              onCreateBranch={createNewBranch}
-              onSwitchBranch={switchToBranch}
-              onSwitchChapter={setActiveChapter}
+              onUpdateChapterContent={onUpdateChapterContent}
+              onCreateChapter={onCreateChapter}
+              onCreateSavePoint={onCreateSavePoint}
+              onSubmitChapterForReview={onSubmitChapterForReview}
+              onReviewChapter={onReviewChapter}
+              onCreateBranch={onCreateBranch}
+              onSwitchBranch={onSwitchBranch}
+              onSwitchChapter={onSwitchChapter}
+              onRestoreSavePoint={onRestoreSavePoint}
             />
           </TabsContent>
           
-          <TabsContent value="visualizer" className="h-full m-0">
+          <TabsContent value="branches" className="h-full m-0">
             <BranchVisualizer 
               branches={branches}
               activeBranch={activeBranch}
-              onBranchSelect={handleBranchSelect}
+              onSwitchBranch={onSwitchBranch}
             />
           </TabsContent>
         </div>

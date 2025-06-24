@@ -6,24 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { GitMerge, FileText, ArrowRight, AlertTriangle, Replace, Plus, Edit } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { AlertTriangle, ArrowRight, FileText, GitMerge, Target, Plus, Replace } from 'lucide-react';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
+
+export type MergeMode = 'replace' | 'insert' | 'append';
 
 interface SmartMergeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  chapter: ChapterWithReviews;
+  chapter: ChapterWithReviews | null;
   targetChapters: ChapterWithReviews[];
   sourceBranchName: string;
   targetBranchName: string;
-  onMerge: (chapterId: string, mode: MergeMode, targetPosition?: number, replaceChapterId?: string, mergeNote?: string) => Promise<boolean>;
-}
-
-export type MergeMode = 'replace' | 'insert' | 'append';
-
-interface MergeConflict {
-  targetChapter: ChapterWithReviews;
-  similarity: number;
+  onMerge: (
+    chapterId: string,
+    mode: MergeMode,
+    targetPosition?: number,
+    replaceChapterId?: string,
+    mergeNote?: string
+  ) => Promise<boolean>;
 }
 
 const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
@@ -36,69 +39,48 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
   onMerge
 }) => {
   const [mergeMode, setMergeMode] = useState<MergeMode>('append');
-  const [selectedPosition, setSelectedPosition] = useState<number>(targetChapters.length + 1);
-  const [selectedReplaceChapter, setSelectedReplaceChapter] = useState<string>('');
+  const [targetPosition, setTargetPosition] = useState<number>(1);
+  const [replaceChapterId, setReplaceChapterId] = useState<string>('');
   const [mergeNote, setMergeNote] = useState('');
-  const [isMerging, setIsMerging] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Simple conflict detection based on title similarity
-  const detectConflicts = (): MergeConflict[] => {
-    return targetChapters
-      .map(targetChapter => ({
-        targetChapter,
-        similarity: calculateSimilarity(chapter.title, targetChapter.title)
-      }))
-      .filter(conflict => conflict.similarity > 0.6)
-      .sort((a, b) => b.similarity - a.similarity);
-  };
-
-  const calculateSimilarity = (str1: string, str2: string): number => {
-    const words1 = str1.toLowerCase().split(' ');
-    const words2 = str2.toLowerCase().split(' ');
-    const intersection = words1.filter(word => words2.includes(word));
-    return intersection.length / Math.max(words1.length, words2.length);
-  };
-
-  const conflicts = detectConflicts();
+  if (!chapter) return null;
 
   const handleMerge = async () => {
-    setIsMerging(true);
+    if (!chapter) return;
+    
+    setIsProcessing(true);
     try {
       const success = await onMerge(
         chapter.id,
         mergeMode,
-        mergeMode === 'insert' ? selectedPosition : undefined,
-        mergeMode === 'replace' ? selectedReplaceChapter : undefined,
+        mergeMode === 'insert' ? targetPosition : undefined,
+        mergeMode === 'replace' ? replaceChapterId : undefined,
         mergeNote
       );
+      
       if (success) {
         onClose();
+        // Reset form
+        setMergeMode('append');
+        setTargetPosition(1);
+        setReplaceChapterId('');
+        setMergeNote('');
       }
     } catch (error) {
       console.error('Merge failed:', error);
     } finally {
-      setIsMerging(false);
+      setIsProcessing(false);
     }
   };
 
-  const getModeDescription = () => {
-    switch (mergeMode) {
-      case 'replace':
-        return 'Overwrite an existing chapter with this content';
-      case 'insert':
-        return 'Insert this chapter at a specific position';
-      case 'append':
-        return 'Add this chapter at the end of the story';
-    }
-  };
+  // Check for potential conflicts
+  const titleConflicts = targetChapters.filter(tc => 
+    tc.title?.toLowerCase().includes(chapter.title?.toLowerCase() || '') ||
+    chapter.title?.toLowerCase().includes(tc.title?.toLowerCase() || '')
+  );
 
-  const getModeIcon = () => {
-    switch (mergeMode) {
-      case 'replace': return <Replace className="w-4 h-4" />;
-      case 'insert': return <Plus className="w-4 h-4" />;
-      case 'append': return <FileText className="w-4 h-4" />;
-    }
-  };
+  const wordCount = chapter.content ? chapter.content.split(' ').filter(w => w.length > 0).length : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -106,157 +88,152 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="w-5 h-5 text-blue-600" />
-            Smart Merge: {chapter.title}
+            Smart Merge: "{chapter.title || 'Untitled Chapter'}"
           </DialogTitle>
           <DialogDescription>
-            Choose how to merge this chapter from {sourceBranchName} into {targetBranchName}
+            Merging from <span className="font-medium">{sourceBranchName}</span> to{' '}
+            <span className="font-medium">{targetBranchName}</span>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 pt-4">
+          {/* Chapter Preview */}
+          <Card className="p-4">
+            <h3 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Chapter Details
+            </h3>
+            <div className="text-sm text-gray-600 space-y-1">
+              <p><strong>Title:</strong> {chapter.title || 'Untitled'}</p>
+              <p><strong>Order:</strong> Chapter {chapter.chapter_order}</p>
+              <p><strong>Word Count:</strong> {wordCount.toLocaleString()} words</p>
+              <p><strong>Status:</strong> <Badge className="ml-1">{chapter.status}</Badge></p>
+            </div>
+          </Card>
+
           {/* Conflict Detection */}
-          {conflicts.length > 0 && (
+          {titleConflicts.length > 0 && (
             <Card className="p-4 bg-amber-50 border-amber-200">
-              <div className="flex items-start gap-2 mb-3">
+              <div className="flex items-start gap-2">
                 <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
                 <div>
-                  <h4 className="font-medium text-amber-900">Potential Conflicts Detected</h4>
-                  <p className="text-sm text-amber-800">
-                    Found similar chapters that might be related to this merge:
+                  <h4 className="font-medium text-amber-900 mb-1">Potential Conflicts Detected</h4>
+                  <p className="text-sm text-amber-800 mb-2">
+                    Similar chapter titles found in target version:
                   </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {conflicts.slice(0, 3).map(conflict => (
-                  <div key={conflict.targetChapter.id} className="flex items-center justify-between bg-white p-3 rounded border">
-                    <div>
-                      <span className="font-medium">{conflict.targetChapter.title}</span>
-                      <span className="text-sm text-gray-600 ml-2">
-                        (Chapter {conflict.targetChapter.chapter_order})
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-amber-700">
-                      {Math.round(conflict.similarity * 100)}% similar
-                    </Badge>
+                  <div className="space-y-1">
+                    {titleConflicts.map((conflict) => (
+                      <p key={conflict.id} className="text-sm text-amber-700">
+                        • Chapter {conflict.chapter_order}: "{conflict.title || 'Untitled'}"
+                      </p>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             </Card>
           )}
 
-          {/* Merge Mode Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Merge Strategy:
-            </label>
-            <div className="grid grid-cols-1 gap-3">
-              {(['append', 'insert', 'replace'] as MergeMode[]).map((mode) => (
-                <Card
-                  key={mode}
-                  className={`p-4 cursor-pointer transition-all ${
-                    mergeMode === mode 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => setMergeMode(mode)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded ${
-                      mergeMode === mode ? 'bg-blue-100' : 'bg-gray-100'
-                    }`}>
-                      {getModeIcon()}
-                    </div>
-                    <div>
-                      <h4 className="font-medium capitalize">{mode} Chapter</h4>
-                      <p className="text-sm text-gray-600">{getModeDescription()}</p>
-                    </div>
+          {/* Merge Strategy */}
+          <Card className="p-4">
+            <h3 className="font-medium text-gray-900 mb-3">Choose Merge Strategy</h3>
+            <RadioGroup value={mergeMode} onValueChange={(value: MergeMode) => setMergeMode(value)}>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="append" id="append" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="append" className="flex items-center gap-2 font-medium">
+                      <Plus className="w-4 h-4 text-green-600" />
+                      Append to End
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Add this chapter at the end of the target story version
+                    </p>
                   </div>
-                </Card>
-              ))}
-            </div>
-          </div>
+                </div>
 
-          {/* Mode-specific Options */}
-          {mergeMode === 'replace' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Replace which chapter:
-              </label>
-              <Select value={selectedReplaceChapter} onValueChange={setSelectedReplaceChapter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select chapter to replace..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {targetChapters.map((targetChapter) => (
-                    <SelectItem key={targetChapter.id} value={targetChapter.id}>
-                      Chapter {targetChapter.chapter_order}: {targetChapter.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="insert" id="insert" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="insert" className="flex items-center gap-2 font-medium">
+                      <Target className="w-4 h-4 text-blue-600" />
+                      Insert at Position
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1 mb-2">
+                      Insert this chapter at a specific position
+                    </p>
+                    {mergeMode === 'insert' && (
+                      <Select value={targetPosition.toString()} onValueChange={(value) => setTargetPosition(parseInt(value))}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select position..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: Math.max(targetChapters.length + 1, 1) }, (_, i) => (
+                            <SelectItem key={i + 1} value={(i + 1).toString()}>
+                              Position {i + 1} {i < targetChapters.length ? `(before "${targetChapters[i]?.title || 'Untitled'}")` : '(at end)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
 
-          {mergeMode === 'insert' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Insert at position:
-              </label>
-              <Select value={selectedPosition.toString()} onValueChange={(v) => setSelectedPosition(parseInt(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: targetChapters.length + 1 }, (_, i) => i + 1).map((position) => (
-                    <SelectItem key={position} value={position.toString()}>
-                      Position {position} {position === targetChapters.length + 1 ? '(End)' : 
-                        `(Before "${targetChapters.find(c => c.chapter_order === position)?.title || 'Unknown'}")`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="replace" id="replace" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="replace" className="flex items-center gap-2 font-medium">
+                      <Replace className="w-4 h-4 text-red-600" />
+                      Replace Existing Chapter
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1 mb-2">
+                      Replace an existing chapter with this one
+                    </p>
+                    {mergeMode === 'replace' && (
+                      <Select value={replaceChapterId} onValueChange={setReplaceChapterId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select chapter to replace..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetChapters.map((tc) => (
+                            <SelectItem key={tc.id} value={tc.id}>
+                              Chapter {tc.chapter_order}: "{tc.title || 'Untitled'}"
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </RadioGroup>
+          </Card>
 
           {/* Merge Note */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Merge note (optional):
-            </label>
+          <Card className="p-4">
+            <Label htmlFor="merge-note" className="text-sm font-medium text-gray-700">
+              Merge Note (Optional)
+            </Label>
             <Textarea
+              id="merge-note"
               placeholder="Describe this merge operation..."
               value={mergeNote}
               onChange={(e) => setMergeNote(e.target.value)}
-              className="min-h-[80px]"
+              className="mt-2"
             />
-          </div>
-
-          {/* Preview */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <GitMerge className="w-4 h-4 text-blue-600" />
-              <span className="font-medium text-blue-900">Merge Preview</span>
-            </div>
-            <p className="text-sm text-blue-800">
-              {mergeMode === 'replace' && selectedReplaceChapter
-                ? `Replace "${targetChapters.find(c => c.id === selectedReplaceChapter)?.title}" with "${chapter.title}"`
-                : mergeMode === 'insert'
-                ? `Insert "${chapter.title}" at position ${selectedPosition}`
-                : `Add "${chapter.title}" at the end of the story`}
-            </p>
-          </div>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleMerge}
               disabled={
-                isMerging || 
-                (mergeMode === 'replace' && !selectedReplaceChapter)
+                isProcessing || 
+                (mergeMode === 'replace' && !replaceChapterId) ||
+                (mergeMode === 'insert' && !targetPosition)
               }
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              {isMerging ? 'Merging...' : `${mergeMode === 'replace' ? 'Replace' : mergeMode === 'insert' ? 'Insert' : 'Add'} Chapter`}
+              {isProcessing ? 'Merging...' : 'Merge Chapter'}
             </Button>
             <Button onClick={onClose} variant="outline">
               Cancel
