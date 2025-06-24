@@ -1,4 +1,5 @@
 
+
 export interface ContentAnalysis {
   wordCount: number;
   themes: string[];
@@ -32,10 +33,11 @@ export const analyzeContent = (content: string, title?: string): ContentAnalysis
   
   // Detect characters (capitalized words that appear multiple times)
   const capitalizedWords = content.match(/\b[A-Z][a-z]+\b/g) || [];
-  const wordFreq = capitalizedWords.reduce((acc, word) => {
-    acc[word] = (acc[word] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const wordFreq: Record<string, number> = {};
+  
+  capitalizedWords.forEach(word => {
+    wordFreq[word] = (wordFreq[word] || 0) + 1;
+  });
   
   const characters = Object.entries(wordFreq)
     .filter(([word, freq]) => freq > 1 && word.length > 2)

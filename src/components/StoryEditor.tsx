@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -235,34 +236,38 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
     }
   };
 
-  const handleMergeChapter = async (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => {
+  const handleMergeChapter = async (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string): Promise<boolean> => {
     try {
       await onUpdateChapterContent(chapterId, 'MERGED');
-       toast({
+      toast({
         title: "Chapter merged",
         description: "Chapter merged successfully",
       })
+      return true;
     } catch (error) {
-       toast({
+      toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with your request.",
       })
+      return false;
     }
   };
 
-  const handleMergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => {
+  const handleMergeStoryVersion = async (sourceBranchId: string, targetBranchId: string, mergeNote?: string): Promise<boolean> => {
     try {
-       toast({
+      toast({
         title: "Story version merged",
         description: "Story version merged successfully",
       })
+      return true;
     } catch (error) {
-       toast({
+      toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
         description: "There was a problem with your request.",
       })
+      return false;
     }
   };
 
