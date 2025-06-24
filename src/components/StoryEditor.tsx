@@ -101,7 +101,8 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
         <Textarea
           value={content}
           onChange={handleContentChange}
-          className="w-full h-full resize-none focus:outline-none"
+          className="w-full h-full resize-none focus:outline-none bg-white border-gray-200"
+          placeholder="Begin writing your chapter..."
         />
       </div>
     </div>
@@ -138,32 +139,6 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
     />
   );
 };
-
-interface StoryEditorSidebarProps {
-  branches: StoryBranchWithMeta[];
-  chapters: ChapterWithReviews[];
-  activeBranch: string;
-  activeChapter: string;
-  onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
-  onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
-  onSwitchBranch: (branchId: string) => Promise<void>;
-  onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
-}
-
-interface SavePointsPanelProps {
-  savePoints: SavePoint[];
-  onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
-  onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
-}
-
-interface MergeInterfaceProps {
-  branches: StoryBranchWithMeta[];
-  chapters: ChapterWithReviews[];
-  activeBranch: string;
-  onMergeChapter: (chapterId: string, targetBranchId: string, mode: any, mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
-  onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
-  onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
-}
 
 const StoryEditor: React.FC<StoryEditorProps> = ({
   branches,
@@ -276,13 +251,17 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizablePanel defaultSize={25} minSize={20}>
         <StoryEditorSidebar
           branches={branches}
+          chapters={chapters}
           activeBranch={activeBranch}
+          activeChapter={activeChapter}
           newBranchName={newBranchName}
           setNewBranchName={setNewBranchName}
           isCreatingBranch={isCreatingBranch}
           setIsCreatingBranch={setIsCreatingBranch}
+          onCreateChapter={onCreateChapter}
           onCreateBranch={handleCreateBranch}
           onSwitchBranch={onSwitchBranch}
+          onSwitchChapter={onSwitchChapter}
         />
       </ResizablePanel>
       
