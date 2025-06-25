@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +43,11 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
   const [content, setContent] = useState(chapter.content);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast()
+
+  // Update content when chapter changes
+  useEffect(() => {
+    setContent(chapter.content);
+  }, [chapter.content, chapter.id]);
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
@@ -149,6 +153,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
 
   return (
     <ChapterContent 
+      key={chapter.id} // Add key to force re-render when chapter changes
       chapter={chapter} 
       onUpdateChapterContent={onUpdateChapterContent}
       onSubmitChapterForReview={onSubmitChapterForReview}
