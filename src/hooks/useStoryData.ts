@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import { analyzeContent, calculateSimilarity } from '@/utils/contentAnalyzer';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
@@ -456,14 +457,22 @@ export const useStoryData = () => {
     targetPosition?: number,
     replaceChapterId?: string
   ) => {
+    console.log('Starting mergeChapter with params:', { chapterId, targetBranchId, mode, targetPosition, replaceChapterId });
+    
     try {
       const sourceChapter = chapters.find(c => c.id === chapterId);
       if (!sourceChapter || sourceChapter.status !== 'approved') {
-        console.error('Chapter not found or not approved');
+        console.error('Chapter not found or not approved:', { sourceChapter, status: sourceChapter?.status });
         return false;
       }
 
+      // Load target chapters for analysis
+      const targetChapters = await loadChaptersFromBranch(targetBranchId);
+      console.log('Target chapters loaded:', targetChapters.length);
+
       if (mode === 'replace' && replaceChapterId) {
+        console.log('Executing replace mode for chapter:', replaceChapterId);
+        
         // Replace existing chapter
         const { error: updateError } = await supabase
           .from('chapters')
@@ -476,55 +485,65 @@ export const useStoryData = () => {
           })
           .eq('id', replaceChapterId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Replace update error:', updateError);
+          throw updateError;
+        }
 
       } else {
         // Insert, append, subplot, or flashback
-        const { data: targetChapters, error: targetChaptersError } = await supabase
-          .from('chapters')
-          .select('chapter_order')
-          .eq('branch_id', targetBranchId)
-          .order('chapter_order', { ascending: false })
-          .limit(1);
-
-        if (targetChaptersError) throw targetChaptersError;
-
         let newChapterOrder: number;
         let chapterTitle = sourceChapter.title;
         
         if (mode === 'insert' && targetPosition) {
-          // First, get all chapters that need their order updated
+          console.log('Executing insert mode at position:', targetPosition);
+          
+          // Get all chapters at or after the target position
           const { data: chaptersToUpdate, error: selectError } = await supabase
             .from('chapters')
             .select('id, chapter_order')
             .eq('branch_id', targetBranchId)
-            .gte('chapter_order', targetPosition);
+            .gte('chapter_order', targetPosition)
+            .order('chapter_order', { ascending: true });
 
-          if (selectError) throw selectError;
+          if (selectError) {
+            console.error('Select chapters error:', selectError);
+            throw selectError;
+          }
 
-          // Update each chapter's order individually
-          for (const chapter of chaptersToUpdate || []) {
-            const { error: updateError } = await supabase
-              .from('chapters')
-              .update({ chapter_order: chapter.chapter_order + 1 })
-              .eq('id', chapter.id);
+          console.log('Chapters to shift:', chaptersToUpdate?.length || 0);
 
-            if (updateError) throw updateError;
+          // Shift all subsequent chapters by 1
+          if (chaptersToUpdate && chaptersToUpdate.length > 0) {
+            // Update in reverse order to avoid conflicts
+            for (let i = chaptersToUpdate.length - 1; i >= 0; i--) {
+              const chapter = chaptersToUpdate[i];
+              const { error: updateError } = await supabase
+                .from('chapters')
+                .update({ chapter_order: chapter.chapter_order + 1 })
+                .eq('id', chapter.id);
+
+              if (updateError) {
+                console.error('Chapter order update error:', updateError);
+                throw updateError;
+              }
+            }
           }
           
           newChapterOrder = targetPosition;
-        } else if (mode === 'subplot') {
-          // For subplot, we might want to add a prefix to the title
-          chapterTitle = `[Subplot] ${sourceChapter.title}`;
-          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
-        } else if (mode === 'flashback') {
-          // For flashback, add a prefix
-          chapterTitle = `[Flashback] ${sourceChapter.title}`;
-          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
         } else {
-          // Append mode
-          newChapterOrder = targetChapters.length > 0 ? targetChapters[0].chapter_order + 1 : 1;
+          // For append, subplot, and flashback modes
+          const maxOrder = targetChapters.length > 0 ? Math.max(...targetChapters.map(c => c.chapter_order)) : 0;
+          newChapterOrder = maxOrder + 1;
+          
+          if (mode === 'subplot') {
+            chapterTitle = `[Subplot] ${sourceChapter.title}`;
+          } else if (mode === 'flashback') {
+            chapterTitle = `[Flashback] ${sourceChapter.title}`;
+          }
         }
+
+        console.log('Creating new chapter with order:', newChapterOrder);
 
         // Create new chapter
         const { error: insertError } = await supabase
@@ -539,7 +558,10 @@ export const useStoryData = () => {
             status: 'merged'
           });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Chapter insert error:', insertError);
+          throw insertError;
+        }
       }
 
       // Update source chapter status
@@ -548,7 +570,10 @@ export const useStoryData = () => {
         .update({ status: 'merged' })
         .eq('id', chapterId);
 
-      if (updateSourceError) throw updateSourceError;
+      if (updateSourceError) {
+        console.error('Source chapter update error:', updateSourceError);
+        throw updateSourceError;
+      }
 
       // Create save point
       const sourceBranch = branches.find(b => b.id === activeBranch);
@@ -563,6 +588,7 @@ export const useStoryData = () => {
       // Reload chapters
       await loadChapters();
       
+      console.log('Merge completed successfully');
       return true;
     } catch (error) {
       console.error('Error merging chapter:', error);

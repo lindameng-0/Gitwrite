@@ -84,6 +84,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
   ) => {
     if (!selectedTargetBranch) return false;
 
+    console.log('Starting merge with options:', { chapterId, mode, targetPosition, replaceChapterId });
+
     setIsMerging(true);
     try {
       const success = await onMergeChapter(
@@ -106,12 +108,13 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       } else {
         toast({
           title: "Merge failed",
-          description: "There was an issue merging the chapter. Please try again.",
+          description: "There was an issue merging the chapter. Please check console for details.",
           variant: "destructive",
         });
       }
       return success;
     } catch (error) {
+      console.error('Merge error:', error);
       toast({
         title: "Merge error",
         description: "An unexpected error occurred during the merge.",
@@ -264,12 +267,12 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
             <div className="flex items-start gap-2">
               <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <p className="text-sm text-blue-900 font-medium mb-1">AI-Powered Smart Merge Features:</p>
+                <p className="text-sm text-blue-900 font-medium mb-1">Enhanced AI Smart Merge Features:</p>
                 <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Content analysis for optimal positioning</li>
-                  <li>• Character and theme conflict detection</li>
-                  <li>• Novel-specific merge strategies (subplot, flashback, etc.)</li>
-                  <li>• Intelligent flow and tone matching</li>
+                  <li>• Content similarity detection for alternate versions</li>
+                  <li>• Character and dialogue conflict resolution</li>
+                  <li>• Intelligent positioning with conflict prevention</li>
+                  <li>• Plot continuity analysis and suggestions</li>
                 </ul>
               </div>
             </div>
@@ -299,7 +302,42 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
           </div>
 
           <Button 
-            onClick={handleMergeStoryVersion}
+            onClick={async () => {
+              if (!selectedTargetBranch) {
+                toast({
+                  title: "Select target version",
+                  description: "Please select which story version to merge into.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              setIsMerging(true);
+              try {
+                const success = await onMergeStoryVersion(activeBranch, selectedTargetBranch, mergeNote);
+                if (success) {
+                  toast({
+                    title: "Story version merged successfully!",
+                    description: "All approved content has been merged into the target story version.",
+                  });
+                  setMergeNote('');
+                } else {
+                  toast({
+                    title: "Merge failed",
+                    description: "There was an issue merging the story versions. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              } catch (error) {
+                toast({
+                  title: "Merge error",
+                  description: "An unexpected error occurred during the merge.",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsMerging(false);
+              }
+            }}
             variant="outline" 
             className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
             disabled={!selectedTargetBranch || isMerging}
