@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,8 @@ interface StoryBranchStudioProps {
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
   onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
+  onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
+  onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -44,7 +47,9 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
-  onLoadTargetChapters
+  onLoadTargetChapters,
+  onMergeChapter,
+  onMergeStoryVersion
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
 
@@ -82,6 +87,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onSwitchChapter={onSwitchChapter}
               onRestoreSavePoint={onRestoreSavePoint}
               onLoadTargetChapters={onLoadTargetChapters}
+              onMergeChapter={onMergeChapter}
+              onMergeStoryVersion={onMergeStoryVersion}
             />
           </TabsContent>
           
