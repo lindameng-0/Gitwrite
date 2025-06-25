@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
-import { analyzeContent, calculateSimilarity } from '@/utils/contentAnalyzer';
+import { analyzeContent } from '@/utils/contentAnalyzer';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
