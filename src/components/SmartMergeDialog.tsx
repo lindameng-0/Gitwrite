@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, ArrowRight, FileText, GitMerge, Target, Plus, Replace, Brain, Star, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, FileText, GitMerge, Target, Plus, Replace, Brain, Star, TrendingUp, Zap } from 'lucide-react';
 import { analyzeContent, detectMergeConflicts, calculateSmartPositions, type ContentAnalysis, type MergeConflict, type SmartMergePosition } from '@/utils/contentAnalyzer';
+import { generateSmartMergeRecommendations, type SmartMergeRecommendation } from '@/utils/smartMergeAnalyzer';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
 
 export type MergeMode = 'replace' | 'insert' | 'append' | 'subplot' | 'flashback';
@@ -47,6 +48,7 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
   const [analysis, setAnalysis] = useState<ContentAnalysis | null>(null);
   const [conflicts, setConflicts] = useState<MergeConflict[]>([]);
   const [smartPositions, setSmartPositions] = useState<SmartMergePosition[]>([]);
+  const [recommendations, setRecommendations] = useState<SmartMergeRecommendation[]>([]);
 
   useEffect(() => {
     if (chapter && targetChapters.length > 0) {
@@ -54,7 +56,24 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
       const sourceAnalysis = analyzeContent(chapter.content || '', chapter.title || '');
       setAnalysis(sourceAnalysis);
 
-      // Analyze target chapters
+      // Generate smart recommendations
+      const smartRecommendations = generateSmartMergeRecommendations(chapter, targetChapters);
+      setRecommendations(smartRecommendations);
+
+      // Set default merge mode and parameters based on best recommendation
+      if (smartRecommendations.length > 0) {
+        const bestRec = smartRecommendations[0];
+        setMergeMode(bestRec.mode);
+        
+        if (bestRec.targetChapterId) {
+          setReplaceChapterId(bestRec.targetChapterId);
+        }
+        if (bestRec.position) {
+          setTargetPosition(bestRec.position);
+        }
+      }
+
+      // Analyze target chapters for conflicts
       const targetAnalyses = targetChapters.map(tc => 
         analyzeContent(tc.content || '', tc.title || '')
       );
@@ -66,11 +85,6 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
       // Calculate smart positions
       const positions = calculateSmartPositions(sourceAnalysis, targetChapters);
       setSmartPositions(positions);
-
-      // Auto-select the best position
-      if (positions.length > 0) {
-        setTargetPosition(positions[0].position);
-      }
     }
   }, [chapter, targetChapters]);
 
@@ -105,6 +119,7 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
   };
 
   const wordCount = chapter.content ? chapter.content.split(' ').filter(w => w.length > 0).length : 0;
+  const topRecommendation = recommendations[0];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -121,6 +136,51 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-6 pt-4">
+          {/* AI Recommendations */}
+          {recommendations.length > 0 && (
+            <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+              <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                AI Analysis & Recommendations
+              </h3>
+              <div className="space-y-3">
+                {recommendations.slice(0, 3).map((rec, index) => (
+                  <div key={index} className={`p-3 rounded-lg border ${
+                    index === 0 ? 'bg-white border-blue-300 shadow-sm' : 'bg-blue-25 border-blue-100'
+                  }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {index === 0 && <Star className="w-4 h-4 text-yellow-500" />}
+                        <Badge className={`text-xs ${
+                          rec.confidence >= 80 ? 'bg-green-100 text-green-800' :
+                          rec.confidence >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {rec.confidence}% confidence
+                        </Badge>
+                        <span className="text-sm font-medium">{rec.mode.toUpperCase()}</span>
+                      </div>
+                      {index === 0 && (
+                        <Badge className="bg-blue-100 text-blue-800 text-xs">
+                          Recommended
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700">{rec.reason}</p>
+                    {rec.similarity && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        <span>Similarity: {rec.similarity.score}% ({rec.similarity.type})</span>
+                        {rec.similarity.reasons.length > 0 && (
+                          <span className="ml-2">• {rec.similarity.reasons[0]}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Content Analysis */}
           {analysis && (
             <Card className="p-4 bg-blue-50 border-blue-200">
@@ -176,16 +236,59 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
           <Card className="p-4">
             <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-600" />
-              AI-Recommended Merge Strategy
+              Merge Strategy
             </h3>
             <RadioGroup value={mergeMode} onValueChange={(value: MergeMode) => setMergeMode(value)}>
               <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="replace" id="replace" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="replace" className="flex items-center gap-2 font-medium">
+                      <Replace className="w-4 h-4 text-red-600" />
+                      Replace Existing Chapter
+                      {topRecommendation?.mode === 'replace' && (
+                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">AI Recommended</Badge>
+                      )}
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1 mb-2">
+                      Replace an existing chapter with this improved/alternate version
+                    </p>
+                    {mergeMode === 'replace' && (
+                      <Select value={replaceChapterId} onValueChange={setReplaceChapterId}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select chapter to replace..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetChapters.map((tc) => {
+                            const rec = recommendations.find(r => r.targetChapterId === tc.id);
+                            return (
+                              <SelectItem key={tc.id} value={tc.id}>
+                                <div className="flex items-center gap-2">
+                                  {rec && (
+                                    <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                      {rec.confidence}% match
+                                    </Badge>
+                                  )}
+                                  <span>Chapter {tc.chapter_order}: "{tc.title || 'Untitled'}"</span>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="insert" id="insert" className="mt-1" />
                   <div className="flex-1">
                     <Label htmlFor="insert" className="flex items-center gap-2 font-medium">
                       <Star className="w-4 h-4 text-green-600" />
-                      Smart Insert (Recommended)
+                      Smart Insert
+                      {topRecommendation?.mode === 'insert' && (
+                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">AI Recommended</Badge>
+                      )}
                     </Label>
                     <p className="text-sm text-gray-600 mt-1 mb-2">
                       AI analyzes content flow to find the optimal insertion point
@@ -214,14 +317,6 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                         {smartPositions.find(p => p.position === targetPosition) && (
                           <div className="p-2 bg-green-50 rounded text-sm text-green-800">
                             <strong>Why this position?</strong> {smartPositions.find(p => p.position === targetPosition)?.reason}
-                            {smartPositions.find(p => p.position === targetPosition)?.contextBefore && (
-                              <p className="mt-1">
-                                <strong>Context:</strong> After "{smartPositions.find(p => p.position === targetPosition)?.contextBefore}"
-                                {smartPositions.find(p => p.position === targetPosition)?.contextAfter && 
-                                  `, before "${smartPositions.find(p => p.position === targetPosition)?.contextAfter}"`
-                                }
-                              </p>
-                            )}
                           </div>
                         )}
                       </div>
@@ -252,33 +347,6 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                     <p className="text-sm text-gray-600 mt-1">
                       Add contextual background that enhances understanding of current events
                     </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="replace" id="replace" className="mt-1" />
-                  <div className="flex-1">
-                    <Label htmlFor="replace" className="flex items-center gap-2 font-medium">
-                      <Replace className="w-4 h-4 text-red-600" />
-                      Replace Existing Chapter
-                    </Label>
-                    <p className="text-sm text-gray-600 mt-1 mb-2">
-                      Replace an existing chapter with this improved version
-                    </p>
-                    {mergeMode === 'replace' && (
-                      <Select value={replaceChapterId} onValueChange={setReplaceChapterId}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select chapter to replace..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {targetChapters.map((tc) => (
-                            <SelectItem key={tc.id} value={tc.id}>
-                              Chapter {tc.chapter_order}: "{tc.title || 'Untitled'}"
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
                   </div>
                 </div>
 
