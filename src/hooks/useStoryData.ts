@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { analyzeContent } from '@/utils/contentAnalyzer';
+import { useAuth } from './useAuth';
 
 type Story = Database['public']['Tables']['stories']['Row'];
 type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
@@ -20,6 +21,7 @@ export interface ChapterWithReviews extends Chapter {
 }
 
 export const useStoryData = () => {
+  const { profile } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
   const [branches, setBranches] = useState<StoryBranchWithMeta[]>([]);
   const [chapters, setChapters] = useState<ChapterWithReviews[]>([]);
@@ -216,7 +218,7 @@ export const useStoryData = () => {
           title,
           content: '',
           chapter_order: nextOrder,
-          author_name: 'You',
+          author_name: profile?.username || 'Anonymous',
           status: 'draft'
         })
         .select()
@@ -261,7 +263,7 @@ export const useStoryData = () => {
           branch_id: activeBranch,
           title,
           description,
-          author_name: 'You',
+          author_name: profile?.username || 'Anonymous',
           snapshot_data: snapshotData
         })
         .select()
@@ -304,7 +306,7 @@ export const useStoryData = () => {
         .from('chapter_reviews')
         .insert({
           chapter_id: chapterId,
-          reviewer_name: 'Reviewer', // In real app, this would be current user
+          reviewer_name: profile?.username || 'Anonymous',
           status,
           feedback
         });
@@ -362,7 +364,7 @@ export const useStoryData = () => {
           story_id: currentStoryId,
           name,
           content: parentBranch?.content || '',
-          author_name: 'You',
+          author_name: profile?.username || 'Anonymous',
           parent_branch_id: parentBranchId || activeBranch,
           is_main: false,
           is_active: false
@@ -624,7 +626,7 @@ export const useStoryData = () => {
           title: chapter.title,
           content: '', // We don't store full content in snapshots
           chapter_order: index + 1,
-          author_name: 'Restored',
+          author_name: profile?.username || 'Anonymous',
           status: chapter.status || 'draft'
         }));
 

@@ -1,9 +1,12 @@
 
 import React from 'react';
 import StoryBranchStudio from './StoryBranchStudio';
+import UserMenu from './UserMenu';
 import { useStoryData } from '@/hooks/useStoryData';
+import { useAuth } from '@/hooks/useAuth';
 
 const WriterStudio = () => {
+  const { profile } = useAuth();
   const {
     story,
     branches,
@@ -41,6 +44,19 @@ const WriterStudio = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header with user menu */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">Story Studio</h1>
+            {profile && (
+              <p className="text-sm text-gray-600">Welcome back, {profile.full_name || profile.username}!</p>
+            )}
+          </div>
+          <UserMenu />
+        </div>
+      </div>
+      
       <StoryBranchStudio
         branches={branches}
         chapters={chapters}
