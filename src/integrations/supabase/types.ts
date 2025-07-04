@@ -182,6 +182,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          studio_id: string | null
           title: string
           updated_at: string
         }
@@ -190,6 +191,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          studio_id?: string | null
           title?: string
           updated_at?: string
         }
@@ -198,10 +200,19 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          studio_id?: string | null
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stories_studio_id_fkey"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       story_branches: {
         Row: {
@@ -214,6 +225,7 @@ export type Database = {
           name: string
           parent_branch_id: string | null
           story_id: string
+          studio_id: string | null
           updated_at: string
         }
         Insert: {
@@ -226,6 +238,7 @@ export type Database = {
           name: string
           parent_branch_id?: string | null
           story_id: string
+          studio_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -238,6 +251,7 @@ export type Database = {
           name?: string
           parent_branch_id?: string | null
           story_id?: string
+          studio_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -255,7 +269,76 @@ export type Database = {
             referencedRelation: "stories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "story_branches_studio_id_fkey"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      studio_members: {
+        Row: {
+          id: string
+          invited_at: string | null
+          joined_at: string | null
+          role: string
+          studio_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          invited_at?: string | null
+          joined_at?: string | null
+          role?: string
+          studio_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          invited_at?: string | null
+          joined_at?: string | null
+          role?: string
+          studio_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_members_studio_id_fkey"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studios: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {

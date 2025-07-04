@@ -1,12 +1,23 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import StoryBranchStudio from './StoryBranchStudio';
+import StudioSelector from './StudioSelector';
+import StudioSettings from './StudioSettings';
 import UserMenu from './UserMenu';
+import { Button } from '@/components/ui/button';
 import { useStoryData } from '@/hooks/useStoryData';
 import { useAuth } from '@/hooks/useAuth';
+import { useStudios, type Studio } from '@/hooks/useStudios';
+import { ArrowLeft, Settings } from 'lucide-react';
 
 const WriterStudio = () => {
   const { profile } = useAuth();
+  const { studios } = useStudios();
+  const [selectedStudioId, setSelectedStudioId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  const selectedStudio = studios.find(s => s.id === selectedStudioId);
+  
   const {
     story,
     branches,
@@ -29,7 +40,11 @@ const WriterStudio = () => {
     mergeStoryVersion,
     restoreSavePoint,
     loadChaptersFromBranch
-  } = useStoryData();
+  } = useStoryData(selectedStudioId);
+
+  if (!selectedStudioId || !selectedStudio) {
+    return <StudioSelector onStudioSelect={setSelectedStudioId} />;
+  }
 
   if (loading) {
     return (
@@ -47,13 +62,35 @@ const WriterStudio = () => {
       {/* Header with user menu */}
       <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">Story Studio</h1>
-            {profile && (
-              <p className="text-sm text-gray-600">Welcome back, {profile.full_name || profile.username}!</p>
-            )}
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedStudioId(null)}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Studios
+            </Button>
+            <div className="border-l border-gray-300 pl-4">
+              <h1 className="text-lg font-semibold text-gray-900">{selectedStudio.name}</h1>
+              {profile && (
+                <p className="text-sm text-gray-600">Welcome back, {profile.full_name || profile.username}!</p>
+              )}
+            </div>
           </div>
-          <UserMenu />
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsSettingsOpen(true)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Studio Settings
+            </Button>
+            <UserMenu />
+          </div>
         </div>
       </div>
       
@@ -75,6 +112,13 @@ const WriterStudio = () => {
         onLoadTargetChapters={loadChaptersFromBranch}
         onMergeChapter={mergeChapter}
         onMergeStoryVersion={mergeStoryVersion}
+      />
+      
+      {/* Studio Settings Dialog */}
+      <StudioSettings
+        studio={selectedStudio}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

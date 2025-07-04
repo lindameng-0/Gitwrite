@@ -20,7 +20,7 @@ export interface ChapterWithReviews extends Chapter {
   canMerge: boolean;
 }
 
-export const useStoryData = () => {
+export const useStoryData = (studioId?: string | null) => {
   const { profile } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
   const [branches, setBranches] = useState<StoryBranchWithMeta[]>([]);
@@ -32,8 +32,10 @@ export const useStoryData = () => {
 
   // Load initial data
   useEffect(() => {
-    loadStoryData();
-  }, []);
+    if (studioId) {
+      loadStoryData();
+    }
+  }, [studioId]);
 
   // Load chapters when active branch changes
   useEffect(() => {
@@ -44,51 +46,48 @@ export const useStoryData = () => {
   }, [activeBranch]);
 
   const loadStoryData = async () => {
+    if (!studioId) return;
+    
     try {
-      // Load the demo story first, fallback to original if not found
-      let storyData, branchData;
-      
-      try {
-        const { data: demoStory, error: demoError } = await supabase
+      // Load stories for the specific studio
+      const { data: storyData, error: storyError } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('studio_id', studioId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (storyError) throw storyError;
+
+      // Use the first story or create a default one if none exists
+      if (storyData && storyData.length > 0) {
+        setStory(storyData[0]);
+      } else {
+        // Create a default story for this studio
+        const { data: newStory, error: createError } = await supabase
           .from('stories')
-          .select('*')
-          .eq('id', '550e8400-e29b-41d4-a716-446655440000')
-          .single();
-        
-        if (demoError) throw demoError;
-        storyData = demoStory;
-        
-        const { data: demoBranches, error: demoBranchError } = await supabase
-          .from('story_branches')
-          .select('*')
-          .eq('story_id', '550e8400-e29b-41d4-a716-446655440000')
-          .order('created_at', { ascending: true });
-        
-        if (demoBranchError) throw demoBranchError;
-        branchData = demoBranches;
-      } catch (demoError) {
-        // Fallback to original story if demo doesn't exist
-        const { data: originalStory, error: originalError } = await supabase
-          .from('stories')
-          .select('*')
-          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .insert({
+            title: 'New Collaborative Story',
+            description: 'A new story for collaborative writing',
+            studio_id: studioId,
+            created_by: profile?.id
+          })
+          .select()
           .single();
 
-        if (originalError) throw originalError;
-        storyData = originalStory;
-
-        const { data: originalBranches, error: originalBranchError } = await supabase
-          .from('story_branches')
-          .select('*')
-          .eq('story_id', '00000000-0000-0000-0000-000000000001')
-          .order('created_at', { ascending: true });
-
-        if (originalBranchError) throw originalBranchError;
-        branchData = originalBranches;
+        if (createError) throw createError;
+        setStory(newStory);
       }
 
-      setStory(storyData);
-      
+      // Load branches for the studio
+      const { data: branchData, error: branchError } = await supabase
+        .from('story_branches')
+        .select('*')
+        .eq('studio_id', studioId)
+        .order('created_at', { ascending: true });
+
+      if (branchError) throw branchError;
+
       // Convert to our format and find active branch
       const branchesWithMeta: StoryBranchWithMeta[] = branchData.map(branch => ({
         ...branch,
@@ -206,14 +205,15 @@ export const useStoryData = () => {
   };
 
   const createNewChapter = async (title: string, chapterOrder?: number) => {
+    if (!story) return null;
+    
     try {
-      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const nextOrder = chapterOrder || (chapters.length > 0 ? Math.max(...chapters.map(c => c.chapter_order)) + 1 : 1);
       
       const { data, error } = await supabase
         .from('chapters')
         .insert({
-          story_id: currentStoryId,
+          story_id: story.id,
           branch_id: activeBranch,
           title,
           content: '',
@@ -243,8 +243,9 @@ export const useStoryData = () => {
   };
 
   const createSavePoint = async (title: string, description?: string) => {
+    if (!story) return null;
+    
     try {
-      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const snapshotData = {
         chapters: chapters.map(chapter => ({
           id: chapter.id,
@@ -259,7 +260,7 @@ export const useStoryData = () => {
       const { data, error } = await supabase
         .from('save_points')
         .insert({
-          story_id: currentStoryId,
+          story_id: story.id,
           branch_id: activeBranch,
           title,
           description,
@@ -354,14 +355,16 @@ export const useStoryData = () => {
   };
 
   const createNewBranch = async (name: string, parentBranchId?: string) => {
+    if (!story || !studioId) return null;
+    
     try {
-      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
       const parentBranch = branches.find(b => b.id === (parentBranchId || activeBranch));
       
       const { data, error } = await supabase
         .from('story_branches')
         .insert({
-          story_id: currentStoryId,
+          story_id: story.id,
+          studio_id: studioId,
           name,
           content: parentBranch?.content || '',
           author_name: profile?.username || 'Anonymous',
@@ -389,13 +392,13 @@ export const useStoryData = () => {
   };
 
   const switchToBranch = async (branchId: string) => {
+    if (!story) return;
+    
     try {
-      const currentStoryId = story?.id || '550e8400-e29b-41d4-a716-446655440000';
-      
       const { error: updateError } = await supabase
         .from('story_branches')
         .update({ is_active: false })
-        .eq('story_id', currentStoryId);
+        .eq('story_id', story.id);
 
       if (updateError) throw updateError;
 
@@ -621,7 +624,7 @@ export const useStoryData = () => {
       // Restore chapters from snapshot
       if (snapshotData.chapters && snapshotData.chapters.length > 0) {
         const chaptersToRestore = snapshotData.chapters.map((chapter: any, index: number) => ({
-          story_id: story?.id || '550e8400-e29b-41d4-a716-446655440000',
+          story_id: story?.id,
           branch_id: activeBranch,
           title: chapter.title,
           content: '', // We don't store full content in snapshots
