@@ -8,7 +8,7 @@
 
 @layer base {
   :root {
-    --background: 252 251 247;
+    --background: 255 255 255;
     --foreground: 41 37 36;
 
     --card: 255 255 255;
@@ -20,7 +20,7 @@
     --primary: 124 115 240;
     --primary-foreground: 255 255 255;
 
-    --secondary: 250 249 246;
+    --secondary: 249 249 249;
     --secondary-foreground: 68 64 60;
 
     --muted: 248 246 242;
