@@ -8,43 +8,43 @@
 
 @layer base {
   :root {
-    --background: 255 255 255;
-    --foreground: 41 37 36;
+    --background: 251 250 248;
+    --foreground: 28 25 23;
 
-    --card: 255 255 255;
-    --card-foreground: 41 37 36;
+    --card: 255 254 252;
+    --card-foreground: 28 25 23;
 
-    --popover: 255 255 255;
-    --popover-foreground: 41 37 36;
+    --popover: 255 254 252;
+    --popover-foreground: 28 25 23;
 
     --primary: 124 115 240;
     --primary-foreground: 255 255 255;
 
-    --secondary: 249 249 249;
+    --secondary: 247 246 243;
     --secondary-foreground: 68 64 60;
 
-    --muted: 248 246 242;
+    --muted: 245 244 240;
     --muted-foreground: 120 113 108;
 
-    --accent: 250 249 246;
+    --accent: 247 246 243;
     --accent-foreground: 68 64 60;
 
     --destructive: 239 68 68;
     --destructive-foreground: 248 250 252;
 
-    --border: 226 232 240;
-    --input: 226 232 240;
+    --border: 231 229 224;
+    --input: 231 229 224;
     --ring: 124 115 240;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 255 255 255;
-    --sidebar-foreground: 15 23 42;
+    --sidebar-background: 255 254 252;
+    --sidebar-foreground: 28 25 23;
     --sidebar-primary: 124 115 240;
-    --sidebar-primary-foreground: 248 250 252;
-    --sidebar-accent: 241 245 249;
-    --sidebar-accent-foreground: 15 23 42;
-    --sidebar-border: 226 232 240;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 247 246 243;
+    --sidebar-accent-foreground: 68 64 60;
+    --sidebar-border: 231 229 224;
     --sidebar-ring: 124 115 240;
   }
 
