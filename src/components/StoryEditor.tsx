@@ -90,7 +90,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
 
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
           <div className="flex items-center gap-2 mt-1">
@@ -246,7 +246,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizableHandle />
       
       <ResizablePanel defaultSize={25} minSize={20}>
-        <div className="h-full bg-gray-50">
+        <div className="h-full bg-background">
           <Tabs defaultValue="savepoints" className="h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm">
               <TabsList>

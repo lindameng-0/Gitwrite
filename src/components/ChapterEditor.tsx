@@ -73,7 +73,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
   if (!chapter) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center">
           <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
@@ -135,7 +135,7 @@ const ChapterEditor: React.FC<ChapterEditorProps> = ({
 
         {/* Review Form */}
         {showReviewForm && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-4 p-4 bg-muted rounded-lg">
             <div className="space-y-3">
               <Textarea
                 placeholder="Add feedback (optional)..."
