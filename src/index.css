@@ -8,26 +8,26 @@
 
 @layer base {
   :root {
-    --background: 249 250 252;
-    --foreground: 15 23 42;
+    --background: 252 251 247;
+    --foreground: 41 37 36;
 
     --card: 255 255 255;
-    --card-foreground: 15 23 42;
+    --card-foreground: 41 37 36;
 
     --popover: 255 255 255;
-    --popover-foreground: 15 23 42;
+    --popover-foreground: 41 37 36;
 
-    --primary: 91 91 214;
-    --primary-foreground: 248 250 252;
+    --primary: 124 115 240;
+    --primary-foreground: 255 255 255;
 
-    --secondary: 241 245 249;
-    --secondary-foreground: 15 23 42;
+    --secondary: 250 249 246;
+    --secondary-foreground: 68 64 60;
 
-    --muted: 241 245 249;
-    --muted-foreground: 100 116 139;
+    --muted: 248 246 242;
+    --muted-foreground: 120 113 108;
 
-    --accent: 241 245 249;
-    --accent-foreground: 15 23 42;
+    --accent: 250 249 246;
+    --accent-foreground: 68 64 60;
 
     --destructive: 239 68 68;
     --destructive-foreground: 248 250 252;
