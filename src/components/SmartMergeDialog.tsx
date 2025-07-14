@@ -140,7 +140,7 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
           {recommendations.length > 0 && (
             <Card className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
               <h3 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-500" />
+                <Zap className="w-4 h-4 text-blue-500" />
                 AI Analysis & Recommendations
               </h3>
               <div className="space-y-3">
@@ -150,10 +150,10 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                   }`}>
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {index === 0 && <Star className="w-4 h-4 text-yellow-500" />}
+                        {index === 0 && <Star className="w-4 h-4 text-blue-500" />}
                         <Badge className={`text-xs ${
                           rec.confidence >= 80 ? 'bg-green-100 text-green-800' :
-                          rec.confidence >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                          rec.confidence >= 60 ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {rec.confidence}% confidence
@@ -205,25 +205,25 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
 
           {/* Smart Conflict Detection */}
           {conflicts.length > 0 && (
-            <Card className="p-4 bg-amber-50 border-amber-200">
+            <Card className="p-4 bg-red-50 border-red-200">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="font-medium text-amber-900 mb-2">Content Conflicts Detected</h4>
+                  <h4 className="font-medium text-red-900 mb-2">Content Conflicts Detected</h4>
                   <div className="space-y-2">
                     {conflicts.map((conflict, index) => (
                       <div key={index} className="text-sm">
                         <div className="flex items-center gap-2 mb-1">
                           <Badge className={`text-xs ${
                             conflict.severity === 'high' ? 'bg-red-100 text-red-800' :
-                            conflict.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            conflict.severity === 'medium' ? 'bg-orange-100 text-orange-800' :
                             'bg-blue-100 text-blue-800'
                           }`}>
                             {conflict.type} - {conflict.severity}
                           </Badge>
                         </div>
-                        <p className="text-amber-800 mb-1">{conflict.description}</p>
-                        <p className="text-amber-700 font-medium">💡 {conflict.suggestion}</p>
+                        <p className="text-red-800 mb-1">{conflict.description}</p>
+                        <p className="text-red-700 font-medium">💡 {conflict.suggestion}</p>
                       </div>
                     ))}
                   </div>

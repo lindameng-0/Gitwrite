@@ -137,12 +137,12 @@ const SavePointRestorationDialog: React.FC<SavePointRestorationDialogProps> = ({
           )}
 
           {/* Warning */}
-          <Card className="p-4 bg-amber-50 border-amber-200">
+          <Card className="p-4 bg-blue-50 border-blue-200">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
-                <h4 className="font-medium text-amber-900 mb-1">Important Warning</h4>
-                <p className="text-sm text-amber-800">
+                <h4 className="font-medium text-blue-900 mb-1">Important Warning</h4>
+                <p className="text-sm text-blue-800">
                   Restoring this save point will replace ALL current chapters with the chapters from this save point.
                   Any work done since this save point was created will be lost unless you create a save point first.
                 </p>

@@ -26,7 +26,7 @@ interface StoryEditorSidebarProps {
 const getStatusIcon = (status: string) => {
   switch (status) {
     case 'draft': return <FileText className="w-4 h-4 text-gray-500" />;
-    case 'review': return <Clock className="w-4 h-4 text-yellow-500" />;
+    case 'review': return <Clock className="w-4 h-4 text-blue-500" />;
     case 'approved': return <CheckCircle className="w-4 h-4 text-green-500" />;
     case 'merged': return <CheckCircle className="w-4 h-4 text-blue-500" />;
     default: return <FileText className="w-4 h-4 text-gray-500" />;
@@ -36,7 +36,7 @@ const getStatusIcon = (status: string) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'draft': return 'bg-gray-100 text-gray-800';
-    case 'review': return 'bg-yellow-100 text-yellow-800';
+    case 'review': return 'bg-blue-100 text-blue-800';
     case 'approved': return 'bg-green-100 text-green-800';
     case 'merged': return 'bg-blue-100 text-blue-800';
     default: return 'bg-gray-100 text-gray-800';

@@ -116,7 +116,7 @@ const StudioSettings = ({ studio, isOpen, onClose }: StudioSettingsProps) => {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'owner':
-        return <Crown className="h-4 w-4 text-yellow-600" />;
+        return <Crown className="h-4 w-4 text-blue-600" />;
       case 'admin':
         return <Shield className="h-4 w-4 text-blue-600" />;
       default:
