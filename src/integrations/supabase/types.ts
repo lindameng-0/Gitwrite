@@ -350,7 +350,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_studio_member: {
+        Args: { studio_uuid: string }
+        Returns: boolean
+      }
+      is_studio_owner: {
+        Args: { studio_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
