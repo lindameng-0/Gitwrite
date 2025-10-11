@@ -24,11 +24,20 @@ const AuthPage = () => {
     const { error } = await signIn(email, password);
 
     if (error) {
-      toast({
-        title: 'Sign in failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      // Check if it's an email not confirmed error
+      if (error.message.includes('Email not confirmed') || error.message.includes('Invalid login credentials')) {
+        toast({
+          title: 'Email confirmation required',
+          description: 'Please check your email and click the confirmation link before signing in.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sign in failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     }
 
     setIsLoading(false);
@@ -47,15 +56,25 @@ const AuthPage = () => {
     const { error } = await signUp(email, password, username, fullName);
 
     if (error) {
-      toast({
-        title: 'Sign up failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      // Check if user already exists
+      if (error.message.includes('User already registered')) {
+        toast({
+          title: 'Account exists',
+          description: 'This email is already registered. Please sign in instead.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sign up failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     } else {
       toast({
-        title: 'Welcome!',
-        description: 'Your account has been created successfully.',
+        title: 'Check your email!',
+        description: 'We sent you a confirmation link. Please check your email and click the link to verify your account before signing in.',
+        duration: 10000,
       });
     }
 
