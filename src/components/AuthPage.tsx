@@ -4,13 +4,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, BookOpen, Users, GitBranch } from 'lucide-react';
 
 const AuthPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const { signIn, signUp, resetPassword } = useAuth();
   const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -57,10 +66,10 @@ const AuthPage = () => {
 
     if (error) {
       // Check if user already exists
-      if (error.message.includes('User already registered')) {
+      if (error.message.includes('User already registered') || error.message.includes('already been registered')) {
         toast({
-          title: 'Account exists',
-          description: 'This email is already registered. Please sign in instead.',
+          title: 'Account already exists',
+          description: 'This email is already registered. Please sign in instead or use password recovery if you forgot your password.',
           variant: 'destructive',
         });
       } else {
@@ -76,6 +85,31 @@ const AuthPage = () => {
         description: 'We sent you a confirmation link. Please check your email and click the link to verify your account before signing in.',
         duration: 10000,
       });
+    }
+
+    setIsLoading(false);
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const { error } = await resetPassword(resetEmail);
+
+    if (error) {
+      toast({
+        title: 'Reset failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Check your email!',
+        description: 'We sent you a password reset link. Please check your email.',
+        duration: 8000,
+      });
+      setShowResetDialog(false);
+      setResetEmail('');
     }
 
     setIsLoading(false);
@@ -194,6 +228,16 @@ const AuthPage = () => {
                         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Sign In
                       </Button>
+                      <div className="text-center">
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="text-sm text-muted-foreground"
+                          onClick={() => setShowResetDialog(true)}
+                        >
+                          Forgot your password?
+                        </Button>
+                      </div>
                     </form>
                   </TabsContent>
                   
@@ -252,6 +296,50 @@ const AuthPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset your password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePasswordReset} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="Enter your email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                disabled={isLoading}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowResetDialog(false);
+                  setResetEmail('');
+                }}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Reset Link
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
