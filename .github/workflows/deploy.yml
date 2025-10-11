@@ -1,6 +1,8 @@
 name: Deploy to GitHub Pages
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -8,29 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
+      
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-
+      
       - run: npm install
-
+      
       - run: npm run build
-
+      
       - name: Copy index.html to 404.html
         run: cp dist/index.html dist/404.html
-
+      
       - name: Debug build output
         run: |
-          echo "Listing contents of the root directory..."
-          ls -la
-          echo "Listing contents of the dist directory..."
+          echo "Build contents:"
           ls -R dist
-
+      
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GH_PAT }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           cname: gitwrite.live
-          force_orphan: true
