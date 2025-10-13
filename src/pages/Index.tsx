@@ -1,6 +1,6 @@
-
 import WriterStudio from "@/components/WriterStudio";
 import AuthPage from "@/components/AuthPage";
+import { SupportDialog } from "@/components/SupportDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
@@ -22,7 +22,12 @@ const Index = () => {
     return <AuthPage />;
   }
 
-  return <WriterStudio />;
+  return (
+    <>
+      <WriterStudio />
+      <SupportDialog />
+    </>
+  );
 };
 
 export default Index;

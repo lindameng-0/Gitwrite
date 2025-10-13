@@ -59,7 +59,7 @@ export const SupportDialog = () => {
           {/* Ko-fi Button */}
           <div className="flex flex-col items-center gap-4">
             <a
-              href="https://ko-fi.com/yourkofipage"
+              href="https://ko-fi.com/yuko246409"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full"

@@ -4,7 +4,6 @@ import StoryBranchStudio from './StoryBranchStudio';
 import StudioSelector from './StudioSelector';
 import StudioSettings from './StudioSettings';
 import UserMenu from './UserMenu';
-import { SupportDialog } from './SupportDialog';
 import { Button } from '@/components/ui/button';
 import { useStoryData } from '@/hooks/useStoryData';
 import { useAuth } from '@/hooks/useAuth';
@@ -121,9 +120,6 @@ const WriterStudio = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-      
-      {/* Support Dialog */}
-      <SupportDialog />
     </div>
   );
 };
