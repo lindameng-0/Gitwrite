@@ -238,7 +238,7 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
 
   if (!branches || branches.length === 0) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="w-full h-[calc(100vh-140px)] flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <Card className="p-6 text-center max-w-md shadow-md">
           <GitBranch className="w-10 h-10 text-indigo-600 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">No branches yet</h2>
@@ -251,8 +251,9 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
   }
 
   return (
-    <div className="h-full w-full bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="w-full h-[calc(100vh-140px)] bg-gradient-to-br from-slate-50 to-blue-50">
       <ReactFlow
+        style={{ width: '100%', height: '100%' }}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
