@@ -180,19 +180,12 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
   onBranchSelect,
   onSaveBranchPosition
 }, ref) => {
-  const [manualPositions, setManualPositions] = useState<Map<string, {x: number, y: number}>>(new Map());
-  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const isDraggingRef = React.useRef(false);
 
-  // Expose save function to parent
+  // Expose save function to parent (no-op now since we save immediately)
   React.useImperativeHandle(ref, () => ({
     savePositions: () => {
-      if (manualPositions.size > 0 && onSaveBranchPosition) {
-        manualPositions.forEach((position, branchId) => {
-          onSaveBranchPosition(branchId, position.x, position.y);
-        });
-        setManualPositions(new Map());
-      }
+      // No-op: positions are now saved immediately on drag stop
     }
   }));
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
@@ -264,57 +257,15 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
     isDraggingRef.current = true;
   }, []);
 
-  // Handle node drag end - save position
+  // Handle node drag end - save position immediately
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
     isDraggingRef.current = false;
     if (!onSaveBranchPosition) return;
 
-    // Store position for saving
-    setManualPositions(prev => {
-      const updated = new Map(prev);
-      updated.set(node.id, { x: node.position.x, y: node.position.y });
-      return updated;
-    });
-
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Debounce save for 1 second
-    saveTimeoutRef.current = setTimeout(async () => {
-      await onSaveBranchPosition(node.id, node.position.x, node.position.y);
-    }, 1000);
+    // Save immediately
+    onSaveBranchPosition(node.id, node.position.x, node.position.y);
   }, [onSaveBranchPosition]);
 
-  // Save all manual positions on unmount or visibility change
-  React.useEffect(() => {
-    const saveAllPositions = () => {
-      if (manualPositions.size > 0 && onSaveBranchPosition) {
-        manualPositions.forEach((position, branchId) => {
-          onSaveBranchPosition(branchId, position.x, position.y);
-        });
-        setManualPositions(new Map()); // Clear after saving
-      }
-    };
-
-    // Save when page visibility changes (tab switch, minimize, etc)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        saveAllPositions();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      saveAllPositions();
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [manualPositions, onSaveBranchPosition]);
 
   // Real-time sync: Listen for position updates from other users
   React.useEffect(() => {
