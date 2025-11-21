@@ -133,6 +133,24 @@ export const useStoryData = (studioId?: string | null) => {
         if (createError) throw createError;
         currentStory = newStory;
         setStory(newStory);
+        
+        // Auto-create main branch for new story
+        const { data: mainBranch, error: branchError } = await supabase
+          .from('story_branches')
+          .insert({
+            story_id: currentStory.id,
+            studio_id: studioId,
+            name: 'Main Branch',
+            content: '',
+            author_name: profile?.username || 'System',
+            parent_branch_id: null,
+            is_main: true,
+            is_active: true
+          })
+          .select()
+          .single();
+          
+        if (branchError) throw branchError;
       }
 
       // Load branches for the story (not just studio)
@@ -793,6 +811,24 @@ export const useStoryData = (studioId?: string | null) => {
     }
   };
 
+  const moveChapterToBranch = async (chapterId: string, targetBranchId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('chapters')
+        .update({ branch_id: targetBranchId })
+        .eq('id', chapterId);
+
+      if (error) throw error;
+
+      // Reload chapters to reflect the move
+      await loadChapters();
+      return true;
+    } catch (error) {
+      console.error('Error moving chapter:', error);
+      return false;
+    }
+  };
+
   return {
     story,
     branches,
@@ -814,6 +850,7 @@ export const useStoryData = (studioId?: string | null) => {
     mergeChapter,
     mergeStoryVersion,
     restoreSavePoint,
-    loadChaptersFromBranch
+    loadChaptersFromBranch,
+    moveChapterToBranch,
   };
 };

@@ -39,7 +39,8 @@ const WriterStudio = () => {
     mergeChapter,
     mergeStoryVersion,
     restoreSavePoint,
-    loadChaptersFromBranch
+    loadChaptersFromBranch,
+    moveChapterToBranch
   } = useStoryData(selectedStudioId);
 
   if (!selectedStudioId || !selectedStudio) {
@@ -112,6 +113,7 @@ const WriterStudio = () => {
         onLoadTargetChapters={loadChaptersFromBranch}
         onMergeChapter={mergeChapter}
         onMergeStoryVersion={mergeStoryVersion}
+        onMoveChapter={moveChapterToBranch}
       />
       
       {/* Studio Settings Dialog */}

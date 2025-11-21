@@ -30,6 +30,7 @@ interface StoryBranchStudioProps {
   onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
+  onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -49,7 +50,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onRestoreSavePoint,
   onLoadTargetChapters,
   onMergeChapter,
-  onMergeStoryVersion
+  onMergeStoryVersion,
+  onMoveChapter
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
 
@@ -89,12 +91,14 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onLoadTargetChapters={onLoadTargetChapters}
               onMergeChapter={onMergeChapter}
               onMergeStoryVersion={onMergeStoryVersion}
+              onMoveChapter={onMoveChapter}
             />
           </TabsContent>
           
           <TabsContent value="branches" className="h-full m-0">
             <BranchVisualizer 
               branches={branches}
+              chapters={chapters}
               activeBranch={activeBranch}
               onBranchSelect={onSwitchBranch}
             />

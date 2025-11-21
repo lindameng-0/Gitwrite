@@ -31,6 +31,7 @@ interface StoryEditorProps {
   onLoadTargetChapters: (branchId: string) => Promise<ChapterWithReviews[]>;
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
+  onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
 }
 
 interface ChapterContentProps {
