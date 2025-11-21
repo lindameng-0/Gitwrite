@@ -415,6 +415,8 @@ export const useStoryData = (studioId?: string | null) => {
     
     try {
       const parentBranch = branches.find(b => b.id === (parentBranchId || activeBranch));
+      const isFirstBranch = branches.length === 0;
+      const parentId = parentBranchId || activeBranch || null;
       
       const { data, error } = await supabase
         .from('story_branches')
@@ -424,9 +426,9 @@ export const useStoryData = (studioId?: string | null) => {
           name,
           content: parentBranch?.content || '',
           author_name: profile?.username || 'Anonymous',
-          parent_branch_id: parentBranchId || activeBranch,
-          is_main: false,
-          is_active: false
+          parent_branch_id: parentId,
+          is_main: isFirstBranch,
+          is_active: isFirstBranch
         })
         .select()
         .single();
@@ -435,7 +437,7 @@ export const useStoryData = (studioId?: string | null) => {
 
       const newBranch: StoryBranchWithMeta = {
         ...data,
-        isActive: false
+        isActive: data.is_active
       };
 
       setBranches(prev => [...prev, newBranch]);
@@ -443,7 +445,7 @@ export const useStoryData = (studioId?: string | null) => {
       return data.id;
     } catch (error) {
       console.error('Error creating branch:', error);
-      return null;
+      throw error;
     }
   };
 
