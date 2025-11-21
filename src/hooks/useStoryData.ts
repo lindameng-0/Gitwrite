@@ -111,9 +111,12 @@ export const useStoryData = (studioId?: string | null) => {
 
       if (storyError) throw storyError;
 
+      let currentStory: Story;
+      
       // Use the first story or create a default one if none exists
       if (storyData && storyData.length > 0) {
-        setStory(storyData[0]);
+        currentStory = storyData[0];
+        setStory(currentStory);
       } else {
         // Create a default story for this studio
         const { data: newStory, error: createError } = await supabase
@@ -128,20 +131,21 @@ export const useStoryData = (studioId?: string | null) => {
           .single();
 
         if (createError) throw createError;
+        currentStory = newStory;
         setStory(newStory);
       }
 
-      // Load branches for the studio
+      // Load branches for the story (not just studio)
       const { data: branchData, error: branchError } = await supabase
         .from('story_branches')
         .select('*')
-        .eq('studio_id', studioId)
+        .eq('story_id', currentStory.id)
         .order('created_at', { ascending: true });
 
       if (branchError) throw branchError;
 
       // Convert to our format and find active branch
-      const branchesWithMeta: StoryBranchWithMeta[] = branchData.map(branch => ({
+      const branchesWithMeta: StoryBranchWithMeta[] = (branchData || []).map(branch => ({
         ...branch,
         isActive: branch.is_active
       }));
@@ -149,7 +153,7 @@ export const useStoryData = (studioId?: string | null) => {
       setBranches(branchesWithMeta);
       
       // Set active branch (main branch or first one)
-      const activeBranchId = branchData.find(b => b.is_active)?.id || branchData[0]?.id || '';
+      const activeBranchId = branchesWithMeta.find(b => b.is_active)?.id || branchesWithMeta[0]?.id || '';
       setActiveBranch(activeBranchId);
       
     } catch (error) {
