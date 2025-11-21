@@ -229,6 +229,8 @@ export type Database = {
           is_main: boolean
           name: string
           parent_branch_id: string | null
+          position_x: number | null
+          position_y: number | null
           story_id: string
           studio_id: string | null
           updated_at: string
@@ -242,6 +244,8 @@ export type Database = {
           is_main?: boolean
           name: string
           parent_branch_id?: string | null
+          position_x?: number | null
+          position_y?: number | null
           story_id: string
           studio_id?: string | null
           updated_at?: string
@@ -255,6 +259,8 @@ export type Database = {
           is_main?: boolean
           name?: string
           parent_branch_id?: string | null
+          position_x?: number | null
+          position_y?: number | null
           story_id?: string
           studio_id?: string | null
           updated_at?: string

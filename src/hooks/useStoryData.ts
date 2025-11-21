@@ -26,6 +26,8 @@ interface StoryBranch {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  position_x: number | null;
+  position_y: number | null;
 }
 
 interface Chapter {
@@ -829,6 +831,24 @@ export const useStoryData = (studioId?: string | null) => {
     }
   };
 
+  const saveBranchPosition = async (branchId: string, x: number, y: number): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('story_branches')
+        .update({ 
+          position_x: Math.round(x), 
+          position_y: Math.round(y) 
+        })
+        .eq('id', branchId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error saving branch position:', error);
+      return false;
+    }
+  };
+
   return {
     story,
     branches,
@@ -852,5 +872,6 @@ export const useStoryData = (studioId?: string | null) => {
     restoreSavePoint,
     loadChaptersFromBranch,
     moveChapterToBranch,
+    saveBranchPosition,
   };
 };

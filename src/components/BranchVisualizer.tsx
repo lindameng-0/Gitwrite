@@ -26,6 +26,7 @@ interface BranchVisualizerProps {
   chapters: ChapterWithReviews[];
   activeBranch: string;
   onBranchSelect: (branchId: string) => void;
+  onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
 }
 
 // Dagre layout configuration
@@ -171,8 +172,10 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
   branches, 
   chapters,
   activeBranch, 
-  onBranchSelect 
+  onBranchSelect,
+  onSaveBranchPosition
 }) => {
+  const [pendingSaves, setPendingSaves] = useState<Map<string, {x: number, y: number}>>(new Map());
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
     if (!branches || branches.length === 0) {
       return { nodes: [], edges: [] };
@@ -187,18 +190,23 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
       return acc;
     }, {} as Record<string, ChapterWithReviews[]>);
 
-    // Create nodes
-    const nodes: Node[] = branches.map((branch) => ({
-      id: branch.id,
-      type: 'storyBranch',
-      position: { x: 0, y: 0 }, // Will be set by dagre
-      data: {
-        ...branch,
-        isActive: branch.id === activeBranch,
-        onSelect: onBranchSelect,
-        chapters: chaptersByBranch[branch.id] || [],
-      },
-    }));
+    // Create nodes with saved positions or dagre layout
+    const nodes: Node[] = branches.map((branch) => {
+      const hasCustomPosition = branch.position_x !== null && branch.position_y !== null;
+      return {
+        id: branch.id,
+        type: 'storyBranch',
+        position: hasCustomPosition 
+          ? { x: branch.position_x!, y: branch.position_y! }
+          : { x: 0, y: 0 }, // Will be set by dagre if no custom position
+        data: {
+          ...branch,
+          isActive: branch.id === activeBranch,
+          onSelect: onBranchSelect,
+          chapters: chaptersByBranch[branch.id] || [],
+        },
+      };
+    });
 
     // Create edges
     const edges: Edge[] = branches
@@ -215,6 +223,11 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
         },
       }));
 
+    // Only apply dagre layout if no branches have custom positions
+    const hasAnyCustomPositions = branches.some(b => b.position_x !== null && b.position_y !== null);
+    if (hasAnyCustomPositions) {
+      return { nodes, edges };
+    }
     return getLayoutedElements(nodes, edges);
   }, [branches, chapters, activeBranch, onBranchSelect]);
 
@@ -225,6 +238,44 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
+
+  // Handle node drag end - save position
+  const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    if (onSaveBranchPosition) {
+      setPendingSaves(prev => {
+        const updated = new Map(prev);
+        updated.set(node.id, { x: node.position.x, y: node.position.y });
+        return updated;
+      });
+    }
+  }, [onSaveBranchPosition]);
+
+  // Auto-save pending positions every 2 seconds
+  React.useEffect(() => {
+    if (pendingSaves.size === 0 || !onSaveBranchPosition) return;
+
+    const saveTimer = setTimeout(async () => {
+      const saves = Array.from(pendingSaves.entries());
+      for (const [branchId, position] of saves) {
+        await onSaveBranchPosition(branchId, position.x, position.y);
+      }
+      setPendingSaves(new Map());
+    }, 2000);
+
+    return () => clearTimeout(saveTimer);
+  }, [pendingSaves, onSaveBranchPosition]);
+
+  // Save on unmount (when leaving page)
+  React.useEffect(() => {
+    return () => {
+      if (pendingSaves.size > 0 && onSaveBranchPosition) {
+        const saves = Array.from(pendingSaves.entries());
+        saves.forEach(([branchId, position]) => {
+          onSaveBranchPosition(branchId, position.x, position.y);
+        });
+      }
+    };
+  }, [pendingSaves, onSaveBranchPosition]);
 
   // Update nodes when layout changes
   React.useEffect(() => {
@@ -259,6 +310,7 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStop={handleNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-left"

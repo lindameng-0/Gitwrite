@@ -31,6 +31,7 @@ interface StoryBranchStudioProps {
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
   onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
+  onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -51,7 +52,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onLoadTargetChapters,
   onMergeChapter,
   onMergeStoryVersion,
-  onMoveChapter
+  onMoveChapter,
+  onSaveBranchPosition
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
 
@@ -101,6 +103,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               chapters={chapters}
               activeBranch={activeBranch}
               onBranchSelect={onSwitchBranch}
+              onSaveBranchPosition={onSaveBranchPosition}
             />
           </TabsContent>
         </div>

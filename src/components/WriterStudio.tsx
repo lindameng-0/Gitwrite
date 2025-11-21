@@ -43,7 +43,8 @@ const WriterStudio = () => {
     mergeStoryVersion,
     restoreSavePoint,
     loadChaptersFromBranch,
-    moveChapterToBranch
+    moveChapterToBranch,
+    saveBranchPosition
   } = useStoryData(selectedStudioId);
 
   if (!selectedStudioId || !selectedStudio) {
@@ -118,6 +119,7 @@ const WriterStudio = () => {
         onMergeChapter={mergeChapter}
         onMergeStoryVersion={mergeStoryVersion}
         onMoveChapter={moveChapterToBranch}
+        onSaveBranchPosition={saveBranchPosition}
       />
       </div>
       
