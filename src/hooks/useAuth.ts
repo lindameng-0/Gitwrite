@@ -71,7 +71,12 @@ export const useAuth = () => {
   };
 
   const signUp = async (email: string, password: string, username: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Use localhost for local dev, production URL for deployed site
+    const redirectUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3000/'
+      : 'https://gitwrite.live/';
+    
+    console.log('Sign up with emailRedirectTo:', redirectUrl);
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -98,8 +103,15 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
+    // Use localhost for local dev, production URL for deployed site
+    const redirectUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3000/reset-password'
+      : 'https://gitwrite.live/reset-password';
+    
+    console.log('Sending reset email with redirectTo:', redirectUrl);
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://gitwrite.live/reset-password',
+      redirectTo: redirectUrl,
     });
     return { error };
   };
