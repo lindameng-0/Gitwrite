@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GitBranch, FileText, Users, ChevronDown, ChevronRight } from 'lucide-react';
 import dagre from 'dagre';
+import { supabase } from '@/integrations/supabase/client';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface BranchVisualizerProps {
@@ -27,6 +28,10 @@ interface BranchVisualizerProps {
   activeBranch: string;
   onBranchSelect: (branchId: string) => void;
   onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
+}
+
+export interface BranchVisualizerRef {
+  savePositions: () => void;
 }
 
 // Dagre layout configuration
@@ -168,15 +173,27 @@ const nodeTypes = {
   storyBranch: StoryBranchNode,
 };
 
-const BranchVisualizer: React.FC<BranchVisualizerProps> = ({ 
+const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerProps>(({ 
   branches, 
   chapters,
   activeBranch, 
   onBranchSelect,
   onSaveBranchPosition
-}) => {
+}, ref) => {
   const [manualPositions, setManualPositions] = useState<Map<string, {x: number, y: number}>>(new Map());
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Expose save function to parent
+  React.useImperativeHandle(ref, () => ({
+    savePositions: () => {
+      if (manualPositions.size > 0 && onSaveBranchPosition) {
+        manualPositions.forEach((position, branchId) => {
+          onSaveBranchPosition(branchId, position.x, position.y);
+        });
+        setManualPositions(new Map());
+      }
+    }
+  }));
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
     if (!branches || branches.length === 0) {
       return { nodes: [], edges: [] };
@@ -278,19 +295,77 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
     }, 1000);
   }, [onSaveBranchPosition]);
 
-  // Save all manual positions on unmount
+  // Save all manual positions on unmount or visibility change
   React.useEffect(() => {
-    return () => {
+    const saveAllPositions = () => {
       if (manualPositions.size > 0 && onSaveBranchPosition) {
         manualPositions.forEach((position, branchId) => {
           onSaveBranchPosition(branchId, position.x, position.y);
         });
+        setManualPositions(new Map()); // Clear after saving
       }
+    };
+
+    // Save when page visibility changes (tab switch, minimize, etc)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        saveAllPositions();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      saveAllPositions();
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
   }, [manualPositions, onSaveBranchPosition]);
+
+  // Real-time sync: Listen for position updates from other users
+  React.useEffect(() => {
+    if (!branches || branches.length === 0) return;
+
+    const channel = supabase
+      .channel('story-branches-positions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'story_branches',
+          filter: `story_id=eq.${branches[0]?.story_id}`
+        },
+        (payload) => {
+          const updatedBranch = payload.new as any;
+          
+          // Only update if the position changed and it's not our own change
+          if (updatedBranch.position_x !== null && updatedBranch.position_y !== null) {
+            // Update the node position in React Flow
+            setNodes((currentNodes) =>
+              currentNodes.map((node) =>
+                node.id === updatedBranch.id
+                  ? {
+                      ...node,
+                      position: {
+                        x: updatedBranch.position_x,
+                        y: updatedBranch.position_y,
+                      },
+                    }
+                  : node
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [branches, setNodes]);
 
   // Update nodes when layout changes, but preserve manual positions
   React.useEffect(() => {
@@ -366,6 +441,8 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
       </ReactFlow>
     </div>
   );
-};
+});
+
+BranchVisualizer.displayName = 'BranchVisualizer';
 
 export default BranchVisualizer;

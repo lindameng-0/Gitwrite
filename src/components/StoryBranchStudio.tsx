@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { GitBranch, Plus, FileText, Save, Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import StoryEditor from './StoryEditor';
-import BranchVisualizer from './BranchVisualizer';
+import BranchVisualizer, { BranchVisualizerRef } from './BranchVisualizer';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryBranchStudioProps {
@@ -56,10 +56,19 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onSaveBranchPosition
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
+  const branchVisualizerRef = React.useRef<BranchVisualizerRef>(null);
+
+  // Save positions when switching away from branches tab
+  const handleTabChange = (newTab: string) => {
+    if (activeTab === 'branches' && branchVisualizerRef.current) {
+      branchVisualizerRef.current.savePositions();
+    }
+    setActiveTab(newTab);
+  };
 
   return (
     <div className="h-full bg-gradient-to-br from-blue-50 to-indigo-50">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
         <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
           <TabsList className="bg-gray-100">
             <TabsTrigger value="editor" className="flex items-center gap-2">
@@ -99,6 +108,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
           
           <TabsContent value="branches" className="h-full m-0">
             <BranchVisualizer 
+              ref={branchVisualizerRef}
               branches={branches}
               chapters={chapters}
               activeBranch={activeBranch}
