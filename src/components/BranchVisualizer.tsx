@@ -182,6 +182,7 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
 }, ref) => {
   const [manualPositions, setManualPositions] = useState<Map<string, {x: number, y: number}>>(new Map());
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = React.useRef(false);
 
   // Expose save function to parent
   React.useImperativeHandle(ref, () => ({
@@ -208,20 +209,16 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
       return acc;
     }, {} as Record<string, ChapterWithReviews[]>);
 
-    // Create nodes with manual, saved, or dagre positions (in that priority order)
+    // Create nodes with saved positions or dagre layout (manual positions handled by React Flow state)
     const nodes: Node[] = branches.map((branch) => {
-      // Priority: manual position > saved position > dagre layout
-      const manualPos = manualPositions.get(branch.id);
       const hasCustomPosition = branch.position_x !== null && branch.position_y !== null;
       
       return {
         id: branch.id,
         type: 'storyBranch',
-        position: manualPos 
-          ? { x: manualPos.x, y: manualPos.y }
-          : hasCustomPosition 
-            ? { x: branch.position_x!, y: branch.position_y! }
-            : { x: 0, y: 0 }, // Will be set by dagre if no custom position
+        position: hasCustomPosition 
+          ? { x: branch.position_x!, y: branch.position_y! }
+          : { x: 0, y: 0 }, // Will be set by dagre if no custom position
         data: {
           ...branch,
           isActive: branch.id === activeBranch,
@@ -246,15 +243,13 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
         },
       }));
 
-    // Only apply dagre layout if no branches have custom positions or manual positions
-    const hasAnyCustomPositions = branches.some(b => 
-      b.position_x !== null && b.position_y !== null || manualPositions.has(b.id)
-    );
+    // Only apply dagre layout if no branches have custom positions
+    const hasAnyCustomPositions = branches.some(b => b.position_x !== null && b.position_y !== null);
     if (hasAnyCustomPositions) {
       return { nodes, edges };
     }
     return getLayoutedElements(nodes, edges);
-  }, [branches, chapters, activeBranch, onBranchSelect, manualPositions]);
+  }, [branches, chapters, activeBranch, onBranchSelect]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
@@ -264,20 +259,17 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
     [setEdges]
   );
 
-  // Handle node drag - update manual positions immediately
-  const handleNodeDrag = useCallback((event: React.MouseEvent, node: Node) => {
-    setManualPositions(prev => {
-      const updated = new Map(prev);
-      updated.set(node.id, { x: node.position.x, y: node.position.y });
-      return updated;
-    });
+  // Handle node drag start
+  const handleNodeDragStart = useCallback(() => {
+    isDraggingRef.current = true;
   }, []);
 
-  // Handle node drag end - trigger save
+  // Handle node drag end - save position
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node) => {
+    isDraggingRef.current = false;
     if (!onSaveBranchPosition) return;
 
-    // Update manual position
+    // Store position for saving
     setManualPositions(prev => {
       const updated = new Map(prev);
       updated.set(node.id, { x: node.position.x, y: node.position.y });
@@ -367,25 +359,12 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
     };
   }, [branches, setNodes]);
 
-  // Update nodes when layout changes, but preserve manual positions
+  // Update nodes when layout changes, but don't override during drag
   React.useEffect(() => {
-    setNodes((currentNodes) => {
-      // Merge layouted nodes with current manual positions
-      return layoutedNodes.map(layoutNode => {
-        const currentNode = currentNodes.find(n => n.id === layoutNode.id);
-        const manualPos = manualPositions.get(layoutNode.id);
-        
-        // Keep manual position if exists, otherwise use layout position
-        if (manualPos || currentNode) {
-          return {
-            ...layoutNode,
-            position: manualPos || currentNode?.position || layoutNode.position
-          };
-        }
-        return layoutNode;
-      });
-    });
-  }, [layoutedNodes, setNodes, manualPositions]);
+    if (isDraggingRef.current) return; // Don't update during drag
+    
+    setNodes(layoutedNodes);
+  }, [layoutedNodes, setNodes]);
 
   // Update edges when layout changes
   React.useEffect(() => {
@@ -415,7 +394,7 @@ const BranchVisualizer = React.forwardRef<BranchVisualizerRef, BranchVisualizerP
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeDrag={handleNodeDrag}
+        onNodeDragStart={handleNodeDragStart}
         onNodeDragStop={handleNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
