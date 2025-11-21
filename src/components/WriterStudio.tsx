@@ -9,13 +9,16 @@ import { useStoryData } from '@/hooks/useStoryData';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudios, type Studio } from '@/hooks/useStudios';
 import { ArrowLeft, Settings } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 
 const WriterStudio = () => {
   const { profile } = useAuth();
   const { studios } = useStudios();
-  const [selectedStudioId, setSelectedStudioId] = useState<string | null>(null);
+  const { studioId } = useParams<{ studioId: string }>();
+  const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
+  const selectedStudioId = studioId || null;
   const selectedStudio = studios.find(s => s.id === selectedStudioId);
   
   const {
@@ -44,7 +47,7 @@ const WriterStudio = () => {
   } = useStoryData(selectedStudioId);
 
   if (!selectedStudioId || !selectedStudio) {
-    return <StudioSelector onStudioSelect={setSelectedStudioId} />;
+    return <StudioSelector onStudioSelect={(id) => navigate(`/studio/${id}`)} />;
   }
 
   if (loading) {
@@ -64,15 +67,15 @@ const WriterStudio = () => {
       <div className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setSelectedStudioId(null)}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Studios
-            </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Studios
+          </Button>
             <div className="border-l border-gray-300 pl-4">
               <h1 className="text-lg font-semibold text-gray-900">{selectedStudio.name}</h1>
               {profile && (
