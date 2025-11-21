@@ -1,5 +1,4 @@
-
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -17,58 +16,147 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { GitBranch, FileText, Users } from 'lucide-react';
-import type { StoryBranchWithMeta } from '@/hooks/useStoryData';
+import { Button } from '@/components/ui/button';
+import { GitBranch, FileText, Users, ChevronDown, ChevronRight } from 'lucide-react';
+import dagre from 'dagre';
+import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface BranchVisualizerProps {
   branches: StoryBranchWithMeta[];
+  chapters: ChapterWithReviews[];
   activeBranch: string;
   onBranchSelect: (branchId: string) => void;
 }
 
+// Dagre layout configuration
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+const nodeWidth = 280;
+const nodeHeight = 200;
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+  dagreGraph.setGraph({ rankdir: 'TB', ranksep: 100, nodesep: 80 });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
+
 const StoryBranchNode = ({ data }: { data: any }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isActive = data.isActive;
   const isMain = data.is_main;
+  const chapters = data.chapters || [];
   
   return (
     <div className="relative">
       <Handle type="target" position={Position.Top} className="w-3 h-3" />
       <Card 
-        className={`p-4 min-w-[250px] cursor-pointer transition-all duration-200 ${
+        className={`p-4 w-[280px] cursor-pointer transition-all duration-200 ${
           isActive 
-            ? 'border-story-500 bg-story-50 shadow-lg' 
-            : 'border-gray-300 bg-white hover:border-story-400 hover:shadow-md'
+            ? 'border-indigo-500 bg-indigo-50 shadow-lg' 
+            : 'border-gray-300 bg-white hover:border-indigo-400 hover:shadow-md'
         }`}
         onClick={() => data.onSelect(data.id)}
       >
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
+        {/* Branch Header */}
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2 flex-1">
             {isMain ? (
-              <FileText className="w-4 h-4 text-story-600" />
+              <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
             ) : (
-              <GitBranch className="w-4 h-4 text-branch-600" />
+              <GitBranch className="w-4 h-4 text-indigo-600 flex-shrink-0" />
             )}
             <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">
               {data.name}
             </h3>
+            {isMain && (
+              <Badge className="bg-green-100 text-green-800 text-xs px-1.5 py-0">
+                Main
+              </Badge>
+            )}
           </div>
           {isActive && (
-            <Badge className="bg-story-600 text-white text-xs">
+            <Badge className="bg-indigo-600 text-white text-xs ml-2">
               Active
             </Badge>
           )}
         </div>
         
-        <p className="text-xs text-gray-600 mb-3 line-clamp-3">
-          {data.content.substring(0, 120)}...
-        </p>
-        
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        {/* Author & Date */}
+        <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
           <Users className="w-3 h-3" />
-          <span>{data.author_name}</span>
+          <span className="line-clamp-1">{data.author_name}</span>
           <span>•</span>
           <span>{new Date(data.created_at).toLocaleDateString()}</span>
         </div>
+        
+        {/* Chapters Section */}
+        {chapters.length > 0 && (
+          <div className="border-t pt-2 mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-between p-1 h-auto hover:bg-gray-100"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+            >
+              <span className="text-xs font-medium text-gray-700">
+                {chapters.length} Chapter{chapters.length !== 1 ? 's' : ''}
+              </span>
+              {isExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </Button>
+            
+            {isExpanded && (
+              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                {chapters.map((chapter: ChapterWithReviews, index: number) => (
+                  <div
+                    key={chapter.id}
+                    className="text-xs p-1.5 bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-start gap-1.5">
+                      <FileText className="w-3 h-3 text-gray-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-800 line-clamp-1">
+                          {index + 1}. {chapter.title}
+                        </div>
+                        <div className="text-gray-500 text-[10px]">
+                          {chapter.status}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
       <Handle type="source" position={Position.Bottom} className="w-3 h-3" />
     </div>
@@ -81,93 +169,78 @@ const nodeTypes = {
 
 const BranchVisualizer: React.FC<BranchVisualizerProps> = ({ 
   branches, 
+  chapters,
   activeBranch, 
   onBranchSelect 
 }) => {
-  console.log('BranchVisualizer branches:', branches, 'activeBranch:', activeBranch);
-
-  const initialNodes: Node[] = useMemo(() => {
-    const mainBranch = branches.find(b => b.is_main);
-    const otherBranches = branches.filter(b => !b.is_main);
-
-    const nodes: Node[] = [];
-
-    // Add main branch node
-    if (mainBranch) {
-      nodes.push({
-        id: mainBranch.id,
-        type: 'storyBranch',
-        position: { x: 300, y: 100 },
-        data: {
-          ...mainBranch,
-          isActive: mainBranch.id === activeBranch,
-          onSelect: onBranchSelect,
-        },
-      });
+  const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
+    if (!branches || branches.length === 0) {
+      return { nodes: [], edges: [] };
     }
 
-    // Add other branch nodes
-    otherBranches.forEach((branch, index) => {
-      nodes.push({
-        id: branch.id,
-        type: 'storyBranch',
-        position: { 
-          x: 100 + (index * 300), 
-          y: 300 
-        },
-        data: {
-          ...branch,
-          isActive: branch.id === activeBranch,
-          onSelect: onBranchSelect,
-        },
-      });
-    });
+    // Group chapters by branch
+    const chaptersByBranch = chapters.reduce((acc, chapter) => {
+      if (!acc[chapter.branch_id]) {
+        acc[chapter.branch_id] = [];
+      }
+      acc[chapter.branch_id].push(chapter);
+      return acc;
+    }, {} as Record<string, ChapterWithReviews[]>);
 
-    return nodes;
-  }, [branches, activeBranch, onBranchSelect]);
+    // Create nodes
+    const nodes: Node[] = branches.map((branch) => ({
+      id: branch.id,
+      type: 'storyBranch',
+      position: { x: 0, y: 0 }, // Will be set by dagre
+      data: {
+        ...branch,
+        isActive: branch.id === activeBranch,
+        onSelect: onBranchSelect,
+        chapters: chaptersByBranch[branch.id] || [],
+      },
+    }));
 
-  const initialEdges: Edge[] = useMemo(() => {
-    const mainBranch = branches.find(b => b.is_main);
-    if (!mainBranch) return [];
-
-    return branches
-      .filter(branch => !branch.is_main && branch.parent_branch_id === mainBranch.id)
+    // Create edges
+    const edges: Edge[] = branches
+      .filter(branch => branch.parent_branch_id)
       .map(branch => ({
-        id: `${mainBranch.id}-to-${branch.id}`,
-        source: mainBranch.id,
+        id: `${branch.parent_branch_id}-to-${branch.id}`,
+        source: branch.parent_branch_id!,
         target: branch.id,
         type: 'smoothstep',
         animated: branch.id === activeBranch,
         style: { 
-          stroke: branch.id === activeBranch ? '#7c73f0' : '#94a3b8',
+          stroke: branch.id === activeBranch ? '#6366f1' : '#94a3b8',
           strokeWidth: branch.id === activeBranch ? 3 : 2,
         },
       }));
-  }, [branches, activeBranch]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+    return getLayoutedElements(nodes, edges);
+  }, [branches, chapters, activeBranch, onBranchSelect]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  // Update nodes when branches change
+  // Update nodes when layout changes
   React.useEffect(() => {
-    setNodes(initialNodes);
-  }, [initialNodes, setNodes]);
+    setNodes(layoutedNodes);
+  }, [layoutedNodes, setNodes]);
 
-  // Update edges when branches change
+  // Update edges when layout changes
   React.useEffect(() => {
-    setEdges(initialEdges);
-  }, [initialEdges, setEdges]);
+    setEdges(layoutedEdges);
+  }, [layoutedEdges, setEdges]);
 
   if (!branches || branches.length === 0) {
     return (
       <div className="h-[520px] w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <Card className="p-6 text-center max-w-md shadow-md">
-          <GitBranch className="w-10 h-10 text-branch-600 mx-auto mb-3" />
+          <GitBranch className="w-10 h-10 text-indigo-600 mx-auto mb-3" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">No branches yet</h2>
           <p className="text-sm text-gray-600">
             Create a new branch from the Story Editor sidebar to visualize your story structure here.
@@ -201,7 +274,7 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
         <MiniMap 
           className="bg-white border border-gray-200 shadow-sm"
           nodeColor={(node) => {
-            if (node.data?.isActive) return '#7c73f0';
+            if (node.data?.isActive) return '#6366f1';
             if (node.data?.is_main) return '#059669';
             return '#6b7280';
           }}
