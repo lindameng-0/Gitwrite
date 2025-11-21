@@ -84,6 +84,8 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
   activeBranch, 
   onBranchSelect 
 }) => {
+  console.log('BranchVisualizer branches:', branches, 'activeBranch:', activeBranch);
+
   const initialNodes: Node[] = useMemo(() => {
     const mainBranch = branches.find(b => b.is_main);
     const otherBranches = branches.filter(b => !b.is_main);
@@ -160,6 +162,20 @@ const BranchVisualizer: React.FC<BranchVisualizerProps> = ({
   React.useEffect(() => {
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
+
+  if (!branches || branches.length === 0) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <Card className="p-6 text-center max-w-md shadow-md">
+          <GitBranch className="w-10 h-10 text-branch-600 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">No branches yet</h2>
+          <p className="text-sm text-gray-600">
+            Create a new branch from the Story Editor sidebar to visualize your story structure here.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full bg-gradient-to-br from-slate-50 to-blue-50">
