@@ -1,14 +1,66 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
 import { analyzeContent } from '@/utils/contentAnalyzer';
 import { useAuth } from './useAuth';
 
-type Story = Database['public']['Tables']['stories']['Row'];
-type StoryBranch = Database['public']['Tables']['story_branches']['Row'];
-type Chapter = Database['public']['Tables']['chapters']['Row'];
-export type SavePoint = Database['public']['Tables']['save_points']['Row'];
-type ChapterReview = Database['public']['Tables']['chapter_reviews']['Row'];
+// Manual type definitions matching database schema
+interface Story {
+  id: string;
+  title: string;
+  description: string | null;
+  studio_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface StoryBranch {
+  id: string;
+  story_id: string;
+  studio_id: string | null;
+  parent_branch_id: string | null;
+  name: string;
+  content: string;
+  author_name: string;
+  is_main: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Chapter {
+  id: string;
+  story_id: string;
+  branch_id: string;
+  chapter_order: number;
+  title: string;
+  content: string;
+  status: string;
+  author_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavePoint {
+  id: string;
+  story_id: string;
+  branch_id: string;
+  title: string;
+  description: string | null;
+  author_name: string;
+  snapshot_data: any;
+  created_at: string;
+}
+
+interface ChapterReview {
+  id: string;
+  chapter_id: string;
+  reviewer_name: string;
+  status: string;
+  feedback: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface StoryBranchWithMeta extends StoryBranch {
   isActive: boolean;
