@@ -90,7 +90,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full">
       <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
@@ -118,13 +118,15 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
           )}
         </div>
       </div>
-      <div className="p-4 flex-1 overflow-y-auto min-h-0">
-        <Textarea
-          value={content}
-          onChange={handleContentChange}
-          className="w-full h-full min-h-full resize-none focus:outline-none bg-white border-gray-200 text-gray-900"
-          placeholder="Begin writing your chapter..."
-        />
+      <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+        <div className="max-w-4xl mx-auto bg-white shadow-sm border border-gray-200 rounded-sm min-h-[800px]">
+          <Textarea
+            value={content}
+            onChange={handleContentChange}
+            className="w-full min-h-[800px] resize-none focus:outline-none bg-white border-0 text-gray-900 p-8 text-base leading-relaxed"
+            placeholder="Begin writing your chapter..."
+          />
+        </div>
       </div>
     </div>
   );
