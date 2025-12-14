@@ -90,7 +90,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
@@ -144,7 +144,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
 
   if (!chapter) {
     return (
-      <div className="flex items-center justify-center h-full bg-white">
+      <div className="flex items-center justify-center h-full bg-white overflow-hidden">
         <Card className="p-6 text-center">
           <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
@@ -217,27 +217,29 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-      <ResizablePanel defaultSize={25} minSize={20} className="h-full">
-        <StoryEditorSidebar
-          branches={branches}
-          chapters={chapters}
-          activeBranch={activeBranch}
-          activeChapter={activeChapter}
-          newBranchName={newBranchName}
-          setNewBranchName={setNewBranchName}
-          isCreatingBranch={isCreatingBranch}
-          setIsCreatingBranch={setIsCreatingBranch}
-          onCreateChapter={onCreateChapter}
-          onCreateBranch={handleCreateBranch}
-          onSwitchBranch={onSwitchBranch}
-          onSwitchChapter={onSwitchChapter}
-        />
+    <ResizablePanelGroup direction="horizontal" className="h-full">
+      <ResizablePanel defaultSize={25} minSize={15} className="overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <StoryEditorSidebar
+            branches={branches}
+            chapters={chapters}
+            activeBranch={activeBranch}
+            activeChapter={activeChapter}
+            newBranchName={newBranchName}
+            setNewBranchName={setNewBranchName}
+            isCreatingBranch={isCreatingBranch}
+            setIsCreatingBranch={setIsCreatingBranch}
+            onCreateChapter={onCreateChapter}
+            onCreateBranch={handleCreateBranch}
+            onSwitchBranch={onSwitchBranch}
+            onSwitchChapter={onSwitchChapter}
+          />
+        </div>
       </ResizablePanel>
       
-      <ResizableHandle className="bg-border" />
+      <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={50} minSize={30} className="h-full">
+      <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
         <StoryEditorContent
           chapters={chapters}
           activeChapter={activeChapter}
@@ -246,12 +248,12 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         />
       </ResizablePanel>
       
-      <ResizableHandle className="bg-border" />
+      <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={25} minSize={20} className="h-full">
-        <div className="h-full bg-background flex flex-col">
-          <Tabs defaultValue="savepoints" className="h-full flex flex-col">
-            <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm">
+      <ResizablePanel defaultSize={25} minSize={15} className="overflow-hidden">
+        <div className="h-full bg-background flex flex-col overflow-hidden">
+          <Tabs defaultValue="savepoints" className="h-full flex flex-col overflow-hidden">
+            <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
               <TabsList>
                 <TabsTrigger value="savepoints" className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
@@ -264,7 +266,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               </TabsList>
             </div>
             
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
               <TabsContent value="savepoints" className="h-full m-0 p-4">
                 <SavePointsPanel
                   savePoints={savePoints}
