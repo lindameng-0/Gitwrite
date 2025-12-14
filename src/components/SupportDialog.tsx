@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const teamMembers = [
-  { name: 'Alex Chen', initials: 'AC', avatar: '' },
-  { name: 'Sam Rivera', initials: 'SR', avatar: '' },
-  { name: 'Jordan Lee', initials: 'JL', avatar: '' },
-  { name: 'Casey Morgan', initials: 'CM', avatar: '' },
+  { name: 'Linda Meng', initials: 'LM', avatar: '' },
+  { name: 'Mikayla Yu', initials: 'MY', avatar: '' },
+  { name: 'Miranda Shoesmith', initials: 'MS', avatar: '' },
+  { name: 'Amber Chen', initials: 'AC', avatar: '' },
 ];
 
 export const SupportDialog = () => {
