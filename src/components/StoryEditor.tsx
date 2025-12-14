@@ -90,8 +90,8 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
           <div className="flex items-center gap-2 mt-1">
@@ -118,11 +118,11 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
           )}
         </div>
       </div>
-      <div className="p-4 flex-1 overflow-y-auto">
+      <div className="p-4 flex-1 overflow-y-auto min-h-0">
         <Textarea
           value={content}
           onChange={handleContentChange}
-          className="w-full h-full resize-none focus:outline-none bg-white border-gray-200 text-gray-900"
+          className="w-full h-full min-h-full resize-none focus:outline-none bg-white border-gray-200 text-gray-900"
           placeholder="Begin writing your chapter..."
         />
       </div>
@@ -215,8 +215,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={25} minSize={20}>
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
+      <ResizablePanel defaultSize={25} minSize={20} className="h-full">
         <StoryEditorSidebar
           branches={branches}
           chapters={chapters}
@@ -233,9 +233,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         />
       </ResizablePanel>
       
-      <ResizableHandle />
+      <ResizableHandle className="bg-border" />
       
-      <ResizablePanel defaultSize={50} minSize={30}>
+      <ResizablePanel defaultSize={50} minSize={30} className="h-full">
         <StoryEditorContent
           chapters={chapters}
           activeChapter={activeChapter}
@@ -244,10 +244,10 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         />
       </ResizablePanel>
       
-      <ResizableHandle />
+      <ResizableHandle className="bg-border" />
       
-      <ResizablePanel defaultSize={25} minSize={20}>
-        <div className="h-full bg-background">
+      <ResizablePanel defaultSize={25} minSize={20} className="h-full">
+        <div className="h-full bg-background flex flex-col">
           <Tabs defaultValue="savepoints" className="h-full flex flex-col">
             <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm">
               <TabsList>
