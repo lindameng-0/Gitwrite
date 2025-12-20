@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { GitBranch, Clock } from 'lucide-react';
+import { GitBranch, Clock, BarChart3 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import StoryEditorSidebar from './StoryEditorSidebar';
 import StoryEditorContent from './StoryEditorContent';
 import SavePointsPanel from './SavePointsPanel';
 import MergeInterface from './MergeInterface';
+import WriterProgressPanel from './WriterProgressPanel';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
@@ -30,6 +29,9 @@ interface StoryEditorProps {
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
   onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
+  // Role-based props
+  isAdmin?: boolean;
+  currentUserName?: string;
 }
 
 
@@ -52,7 +54,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onRestoreSavePoint,
   onLoadTargetChapters,
   onMergeChapter,
-  onMergeStoryVersion
+  onMergeStoryVersion,
+  isAdmin = true, // Default to true for backwards compatibility
+  currentUserName
 }) => {
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
@@ -126,6 +130,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
             onCreateBranch={handleCreateBranch}
             onSwitchBranch={onSwitchBranch}
             onSwitchChapter={onSwitchChapter}
+            currentUserName={currentUserName}
           />
         </div>
       </ResizablePanel>
@@ -147,41 +152,77 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizablePanel defaultSize={defaultLayout[2]} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
-          <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
-            <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
-              <TabsList>
-                <TabsTrigger value="savepoints" className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Save Points
-                </TabsTrigger>
-                <TabsTrigger value="merge" className="flex items-center gap-2">
-                  <GitBranch className="w-4 h-4" />
-                  Merge
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            
-            <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">
-              <TabsContent value="savepoints" className="h-full m-0 p-4">
-                <SavePointsPanel
-                  savePoints={savePoints}
-                  onCreateSavePoint={onCreateSavePoint}
-                  onRestoreSavePoint={onRestoreSavePoint}
-                />
-              </TabsContent>
+          {isAdmin ? (
+            // Admin Mode: Show full merge interface
+            <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
+              <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
+                <TabsList>
+                  <TabsTrigger value="savepoints" className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Save Points
+                  </TabsTrigger>
+                  <TabsTrigger value="merge" className="flex items-center gap-2">
+                    <GitBranch className="w-4 h-4" />
+                    Merge
+                  </TabsTrigger>
+                </TabsList>
+              </div>
               
-              <TabsContent value="merge" className="h-full m-0 p-4">
-                <MergeInterface
-                  branches={branches}
-                  chapters={chapters}
-                  activeBranch={activeBranch}
-                  onMergeChapter={onMergeChapter}
-                  onMergeStoryVersion={onMergeStoryVersion}
-                  onLoadTargetChapters={onLoadTargetChapters}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
+              <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">
+                <TabsContent value="savepoints" className="h-full m-0 p-4">
+                  <SavePointsPanel
+                    savePoints={savePoints}
+                    onCreateSavePoint={onCreateSavePoint}
+                    onRestoreSavePoint={onRestoreSavePoint}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="merge" className="h-full m-0 p-4">
+                  <MergeInterface
+                    branches={branches}
+                    chapters={chapters}
+                    activeBranch={activeBranch}
+                    onMergeChapter={onMergeChapter}
+                    onMergeStoryVersion={onMergeStoryVersion}
+                    onLoadTargetChapters={onLoadTargetChapters}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          ) : (
+            // Writer Mode: Show simplified progress view
+            <Tabs defaultValue="progress" className="h-full min-h-0 flex flex-col overflow-hidden">
+              <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
+                <TabsList>
+                  <TabsTrigger value="progress" className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    My Progress
+                  </TabsTrigger>
+                  <TabsTrigger value="savepoints" className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Save Points
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">
+                <TabsContent value="progress" className="h-full m-0 p-4">
+                  <WriterProgressPanel
+                    chapters={chapters}
+                    currentUserName={currentUserName}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="savepoints" className="h-full m-0 p-4">
+                  <SavePointsPanel
+                    savePoints={savePoints}
+                    onCreateSavePoint={onCreateSavePoint}
+                    onRestoreSavePoint={onRestoreSavePoint}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
+          )}
         </div>
       </ResizablePanel>
     </ResizablePanelGroup>

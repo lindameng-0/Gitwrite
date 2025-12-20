@@ -5,14 +5,16 @@ import StudioSelector from './StudioSelector';
 import StudioSettings from './StudioSettings';
 import UserMenu from './UserMenu';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useStoryData } from '@/hooks/useStoryData';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudios, type Studio } from '@/hooks/useStudios';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { useStudioRole } from '@/hooks/useStudioRole';
+import { ArrowLeft, Settings, Shield, Pencil } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const WriterStudio = () => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { studios } = useStudios();
   const { studioId, branchId, chapterId } = useParams<{ studioId: string; branchId?: string; chapterId?: string }>();
   const navigate = useNavigate();
@@ -20,6 +22,9 @@ const WriterStudio = () => {
   
   const selectedStudioId = studioId || null;
   const selectedStudio = studios.find(s => s.id === selectedStudioId);
+  
+  // Get user's role in this studio
+  const { isAdmin, loading: roleLoading } = useStudioRole(selectedStudioId);
   
   const {
     story,
@@ -72,11 +77,14 @@ const WriterStudio = () => {
     setActiveChapter(newChapterId);
   }, [setActiveChapter]);
 
+  // Get current user's display name for chapter ownership
+  const currentUserName = profile?.full_name || profile?.username || 'Anonymous';
+
   if (!selectedStudioId || !selectedStudio) {
     return <StudioSelector onStudioSelect={(id) => navigate(`/studio/${id}`)} />;
   }
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -126,26 +134,28 @@ const WriterStudio = () => {
       
       <div className="flex-1 min-h-0 overflow-hidden">
         <StoryBranchStudio
-        branches={branches}
-        chapters={chapters}
-        savePoints={savePoints}
-        activeBranch={activeBranch}
-        activeChapter={activeChapter}
-        onUpdateChapterContent={updateChapterContent}
-        onCreateChapter={createNewChapter}
-        onCreateSavePoint={createSavePoint}
-        onSubmitChapterForReview={submitChapterForReview}
-        onReviewChapter={reviewChapter}
-        onCreateBranch={createNewBranch}
-        onSwitchBranch={handleSwitchBranch}
-        onSwitchChapter={handleSwitchChapter}
-        onRestoreSavePoint={restoreSavePoint}
-        onLoadTargetChapters={loadChaptersFromBranch}
-        onMergeChapter={mergeChapter}
-        onMergeStoryVersion={mergeStoryVersion}
-        onMoveChapter={moveChapterToBranch}
-        onSaveBranchPosition={saveBranchPosition}
-      />
+          branches={branches}
+          chapters={chapters}
+          savePoints={savePoints}
+          activeBranch={activeBranch}
+          activeChapter={activeChapter}
+          onUpdateChapterContent={updateChapterContent}
+          onCreateChapter={createNewChapter}
+          onCreateSavePoint={createSavePoint}
+          onSubmitChapterForReview={submitChapterForReview}
+          onReviewChapter={reviewChapter}
+          onCreateBranch={createNewBranch}
+          onSwitchBranch={handleSwitchBranch}
+          onSwitchChapter={handleSwitchChapter}
+          onRestoreSavePoint={restoreSavePoint}
+          onLoadTargetChapters={loadChaptersFromBranch}
+          onMergeChapter={mergeChapter}
+          onMergeStoryVersion={mergeStoryVersion}
+          onMoveChapter={moveChapterToBranch}
+          onSaveBranchPosition={saveBranchPosition}
+          isAdmin={isAdmin}
+          currentUserName={currentUserName}
+        />
       </div>
       
       {/* Studio Settings Dialog */}
