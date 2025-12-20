@@ -74,15 +74,16 @@ export interface ChapterWithReviews extends Chapter {
   canMerge: boolean;
 }
 
-export const useStoryData = (studioId?: string | null) => {
+export const useStoryData = (studioId?: string | null, initialBranchId?: string | null, initialChapterId?: string | null) => {
   const { profile } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
   const [branches, setBranches] = useState<StoryBranchWithMeta[]>([]);
   const [chapters, setChapters] = useState<ChapterWithReviews[]>([]);
   const [savePoints, setSavePoints] = useState<SavePoint[]>([]);
-  const [activeBranch, setActiveBranch] = useState<string>('');
-  const [activeChapter, setActiveChapter] = useState<string>('');
+  const [activeBranch, setActiveBranch] = useState<string>(initialBranchId || '');
+  const [activeChapter, setActiveChapter] = useState<string>(initialChapterId || '');
   const [loading, setLoading] = useState(true);
+  const [chaptersLoading, setChaptersLoading] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -91,11 +92,13 @@ export const useStoryData = (studioId?: string | null) => {
     }
   }, [studioId]);
 
-  // Load chapters when active branch changes
+  // Load chapters when active branch changes - non-blocking
   useEffect(() => {
     if (activeBranch) {
-      loadChapters();
-      loadSavePoints();
+      setChaptersLoading(true);
+      Promise.all([loadChapters(), loadSavePoints()]).finally(() => {
+        setChaptersLoading(false);
+      });
     }
   }, [activeBranch]);
 
@@ -172,9 +175,11 @@ export const useStoryData = (studioId?: string | null) => {
       
       setBranches(branchesWithMeta);
       
-      // Set active branch (main branch or first one)
-      const activeBranchId = branchesWithMeta.find(b => b.is_active)?.id || branchesWithMeta[0]?.id || '';
-      setActiveBranch(activeBranchId);
+      // Set active branch - prefer initialBranchId, then existing active, then first
+      const targetBranchId = (initialBranchId && branchesWithMeta.find(b => b.id === initialBranchId)) 
+        ? initialBranchId 
+        : branchesWithMeta.find(b => b.is_active)?.id || branchesWithMeta[0]?.id || '';
+      setActiveBranch(targetBranchId);
       
     } catch (error) {
       console.error('Error loading story data:', error);
@@ -206,9 +211,12 @@ export const useStoryData = (studioId?: string | null) => {
 
       setChapters(chaptersWithReviews);
       
-      // Set active chapter to first one if none selected
+      // Set active chapter - prefer initialChapterId, then existing, then first
       if (chaptersWithReviews.length > 0 && !activeChapter) {
-        setActiveChapter(chaptersWithReviews[0].id);
+        const targetChapterId = (initialChapterId && chaptersWithReviews.find(c => c.id === initialChapterId))
+          ? initialChapterId
+          : chaptersWithReviews[0].id;
+        setActiveChapter(targetChapterId);
       }
     } catch (error) {
       console.error('Error loading chapters:', error);
