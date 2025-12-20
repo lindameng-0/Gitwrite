@@ -22,6 +22,9 @@ import {
   Redo,
   Highlighter,
   Pilcrow,
+  RemoveFormatting,
+  IndentIncrease,
+  IndentDecrease,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -30,11 +33,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface EditorToolbarProps {
   editor: Editor;
@@ -45,6 +49,7 @@ interface ToolbarButtonProps {
   isActive?: boolean;
   disabled?: boolean;
   tooltip: string;
+  shortcut?: string;
   children: React.ReactNode;
 }
 
@@ -53,9 +58,10 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   isActive = false,
   disabled = false,
   tooltip,
+  shortcut,
   children,
 }) => (
-  <TooltipProvider delayDuration={300}>
+  <TooltipProvider delayDuration={200}>
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -64,16 +70,25 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
           size="sm"
           onClick={onClick}
           disabled={disabled}
-          className={`h-8 w-8 p-0 ${isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`h-7 w-7 p-0 rounded-sm ${
+            isActive 
+              ? 'bg-primary/20 text-primary hover:bg-primary/30' 
+              : 'text-foreground hover:bg-muted'
+          }`}
         >
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">
-        {tooltip}
+      <TooltipContent side="bottom" className="text-xs flex flex-col items-center gap-0.5">
+        <span>{tooltip}</span>
+        {shortcut && <span className="text-muted-foreground text-[10px]">{shortcut}</span>}
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
+);
+
+const ToolbarDivider = () => (
+  <Separator orientation="vertical" className="mx-1.5 h-5 bg-border" />
 );
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
@@ -81,166 +96,235 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
     return null;
   }
 
+  const getCurrentTextStyle = () => {
+    if (editor.isActive('heading', { level: 1 })) return 'h1';
+    if (editor.isActive('heading', { level: 2 })) return 'h2';
+    if (editor.isActive('heading', { level: 3 })) return 'h3';
+    return 'p';
+  };
+
+  const handleTextStyleChange = (value: string) => {
+    switch (value) {
+      case 'p':
+        editor.chain().focus().setParagraph().run();
+        break;
+      case 'h1':
+        editor.chain().focus().toggleHeading({ level: 1 }).run();
+        break;
+      case 'h2':
+        editor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case 'h3':
+        editor.chain().focus().toggleHeading({ level: 3 }).run();
+        break;
+    }
+  };
+
+  const clearFormatting = () => {
+    editor.chain().focus().clearNodes().unsetAllMarks().run();
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-0.5 p-2 border-b border-border bg-muted/30">
-      {/* Undo/Redo */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        tooltip="Undo (Ctrl+Z)"
-      >
-        <Undo className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        tooltip="Redo (Ctrl+Y)"
-      >
-        <Redo className="h-4 w-4" />
-      </ToolbarButton>
+    <div className="sticky top-0 z-10 bg-card border-b border-border">
+      {/* Main Toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 px-3 py-1.5">
+        {/* Undo/Redo */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+          tooltip="Undo"
+          shortcut="Ctrl+Z"
+        >
+          <Undo className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+          tooltip="Redo"
+          shortcut="Ctrl+Y"
+        >
+          <Redo className="h-4 w-4" />
+        </ToolbarButton>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <ToolbarDivider />
 
-      {/* Text Style Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 px-2 gap-1 text-muted-foreground hover:text-foreground">
-            {editor.isActive('heading', { level: 1 }) ? (
-              <><Heading1 className="h-4 w-4" /> Title</>
-            ) : editor.isActive('heading', { level: 2 }) ? (
-              <><Heading2 className="h-4 w-4" /> Heading</>
-            ) : editor.isActive('heading', { level: 3 }) ? (
-              <><Heading3 className="h-4 w-4" /> Subheading</>
-            ) : (
-              <><Pilcrow className="h-4 w-4" /> Normal</>
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => editor.chain().focus().setParagraph().run()}>
-            <Pilcrow className="h-4 w-4 mr-2" />
-            Normal text
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-            <Heading1 className="h-4 w-4 mr-2" />
-            Title
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            <Heading2 className="h-4 w-4 mr-2" />
-            Heading
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-            <Heading3 className="h-4 w-4 mr-2" />
-            Subheading
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        {/* Text Style Dropdown */}
+        <Select value={getCurrentTextStyle()} onValueChange={handleTextStyleChange}>
+          <SelectTrigger className="h-7 w-[130px] text-xs border-0 bg-transparent hover:bg-muted focus:ring-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="p" className="text-sm">
+              <div className="flex items-center gap-2">
+                <Pilcrow className="h-3.5 w-3.5" />
+                Normal text
+              </div>
+            </SelectItem>
+            <SelectItem value="h1" className="text-lg font-bold">
+              <div className="flex items-center gap-2">
+                <Heading1 className="h-4 w-4" />
+                Title
+              </div>
+            </SelectItem>
+            <SelectItem value="h2" className="text-base font-semibold">
+              <div className="flex items-center gap-2">
+                <Heading2 className="h-4 w-4" />
+                Heading
+              </div>
+            </SelectItem>
+            <SelectItem value="h3" className="text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <Heading3 className="h-4 w-4" />
+                Subheading
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <ToolbarDivider />
 
-      {/* Text Formatting */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        isActive={editor.isActive('bold')}
-        tooltip="Bold (Ctrl+B)"
-      >
-        <Bold className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        isActive={editor.isActive('italic')}
-        tooltip="Italic (Ctrl+I)"
-      >
-        <Italic className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        isActive={editor.isActive('underline')}
-        tooltip="Underline (Ctrl+U)"
-      >
-        <Underline className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        isActive={editor.isActive('strike')}
-        tooltip="Strikethrough"
-      >
-        <Strikethrough className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive('highlight')}
-        tooltip="Highlight"
-      >
-        <Highlighter className="h-4 w-4" />
-      </ToolbarButton>
+        {/* Text Formatting */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={editor.isActive('bold')}
+          tooltip="Bold"
+          shortcut="Ctrl+B"
+        >
+          <Bold className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={editor.isActive('italic')}
+          tooltip="Italic"
+          shortcut="Ctrl+I"
+        >
+          <Italic className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive('underline')}
+          tooltip="Underline"
+          shortcut="Ctrl+U"
+        >
+          <Underline className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          isActive={editor.isActive('strike')}
+          tooltip="Strikethrough"
+          shortcut="Alt+Shift+5"
+        >
+          <Strikethrough className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+          isActive={editor.isActive('highlight')}
+          tooltip="Highlight"
+        >
+          <Highlighter className="h-4 w-4" />
+        </ToolbarButton>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <ToolbarDivider />
 
-      {/* Alignment */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign('left').run()}
-        isActive={editor.isActive({ textAlign: 'left' })}
-        tooltip="Align left"
-      >
-        <AlignLeft className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign('center').run()}
-        isActive={editor.isActive({ textAlign: 'center' })}
-        tooltip="Align center"
-      >
-        <AlignCenter className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign('right').run()}
-        isActive={editor.isActive({ textAlign: 'right' })}
-        tooltip="Align right"
-      >
-        <AlignRight className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign('justify').run()}
-        isActive={editor.isActive({ textAlign: 'justify' })}
-        tooltip="Justify"
-      >
-        <AlignJustify className="h-4 w-4" />
-      </ToolbarButton>
+        {/* Alignment */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          isActive={editor.isActive({ textAlign: 'left' })}
+          tooltip="Align left"
+          shortcut="Ctrl+Shift+L"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          isActive={editor.isActive({ textAlign: 'center' })}
+          tooltip="Align center"
+          shortcut="Ctrl+Shift+E"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          isActive={editor.isActive({ textAlign: 'right' })}
+          tooltip="Align right"
+          shortcut="Ctrl+Shift+R"
+        >
+          <AlignRight className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('justify').run()}
+          isActive={editor.isActive({ textAlign: 'justify' })}
+          tooltip="Justify"
+          shortcut="Ctrl+Shift+J"
+        >
+          <AlignJustify className="h-4 w-4" />
+        </ToolbarButton>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <ToolbarDivider />
 
-      {/* Lists */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={editor.isActive('bulletList')}
-        tooltip="Bullet list"
-      >
-        <List className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={editor.isActive('orderedList')}
-        tooltip="Numbered list"
-      >
-        <ListOrdered className="h-4 w-4" />
-      </ToolbarButton>
+        {/* Lists & Indentation */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          isActive={editor.isActive('bulletList')}
+          tooltip="Bullet list"
+          shortcut="Ctrl+Shift+8"
+        >
+          <List className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          isActive={editor.isActive('orderedList')}
+          tooltip="Numbered list"
+          shortcut="Ctrl+Shift+7"
+        >
+          <ListOrdered className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
+          disabled={!editor.can().sinkListItem('listItem')}
+          tooltip="Increase indent"
+          shortcut="Tab"
+        >
+          <IndentIncrease className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().liftListItem('listItem').run()}
+          disabled={!editor.can().liftListItem('listItem')}
+          tooltip="Decrease indent"
+          shortcut="Shift+Tab"
+        >
+          <IndentDecrease className="h-4 w-4" />
+        </ToolbarButton>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
+        <ToolbarDivider />
 
-      {/* Block Elements */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive('blockquote')}
-        tooltip="Quote"
-      >
-        <Quote className="h-4 w-4" />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-        tooltip="Horizontal rule"
-      >
-        <Minus className="h-4 w-4" />
-      </ToolbarButton>
+        {/* Block Elements */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          isActive={editor.isActive('blockquote')}
+          tooltip="Quote"
+          shortcut="Ctrl+Shift+B"
+        >
+          <Quote className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          tooltip="Horizontal line"
+        >
+          <Minus className="h-4 w-4" />
+        </ToolbarButton>
+
+        <ToolbarDivider />
+
+        {/* Clear Formatting */}
+        <ToolbarButton
+          onClick={clearFormatting}
+          tooltip="Clear formatting"
+          shortcut="Ctrl+\\"
+        >
+          <RemoveFormatting className="h-4 w-4" />
+        </ToolbarButton>
+      </div>
     </div>
   );
 };
