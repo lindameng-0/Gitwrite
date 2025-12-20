@@ -64,8 +64,8 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
   };
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 shadow-sm">
-      <div className="p-4 border-b border-gray-100">
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Save className="w-5 h-5 text-story-600" />
@@ -82,7 +82,7 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
         <p className="text-sm text-gray-600">Story snapshots & restoration</p>
       </div>
 
-      <div className="p-4">
+      <div className="flex-1 p-4 overflow-y-auto">
         {showCreateForm && (
           <Card className="p-4 mb-4 bg-story-50 border-story-200">
             <div className="space-y-3">
@@ -120,12 +120,12 @@ const SavePointsPanel: React.FC<SavePointsPanelProps> = ({
           </Card>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-3 h-full">
           {savePoints.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <GitCommit className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="h-full flex flex-col items-center justify-center text-gray-500">
+              <GitCommit className="w-12 h-12 mb-3 text-gray-300" />
               <p className="text-sm">No save points yet</p>
-              <p className="text-xs text-gray-400">Create checkpoints to track your story's progress</p>
+              <p className="text-xs text-gray-400 text-center">Create checkpoints to track your story's progress</p>
             </div>
           ) : (
             savePoints.map((savePoint) => {
