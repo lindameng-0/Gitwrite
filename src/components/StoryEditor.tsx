@@ -90,7 +90,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">{chapter.title}</h2>
@@ -118,7 +118,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({ chapter, onUpdateChapte
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+      <div className="flex-1 min-h-0 overflow-y-auto scroll-stable bg-gray-100 p-6">
         <div className="max-w-4xl mx-auto bg-white shadow-sm border border-gray-200 rounded-sm min-h-[800px]">
           <Textarea
             value={content}
@@ -144,12 +144,14 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
 
   if (!chapter) {
     return (
-      <div className="flex items-center justify-center h-full bg-white">
-        <Card className="p-6 text-center">
-          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
-          <p className="text-gray-600">Select a chapter from the sidebar to start writing.</p>
-        </Card>
+      <div className="h-full overflow-y-auto scroll-stable bg-white">
+        <div className="min-h-full flex items-center justify-center">
+          <Card className="p-6 text-center">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
+            <p className="text-gray-600">Select a chapter from the sidebar to start writing.</p>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -217,9 +219,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
-      <ResizablePanel defaultSize={25} minSize={15} className="min-h-0">
-        <div className="h-full">
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 overflow-hidden">
+      <ResizablePanel defaultSize={25} minSize={15} className="h-full min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 overflow-hidden">
           <StoryEditorSidebar
             branches={branches}
             chapters={chapters}
@@ -239,8 +241,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
-        <div className="h-full overflow-hidden">
+      <ResizablePanel defaultSize={50} minSize={30} className="h-full min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 overflow-hidden">
           <StoryEditorContent
             chapters={chapters}
             activeChapter={activeChapter}
@@ -252,9 +254,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={25} minSize={15} className="min-h-0">
-        <div className="h-full bg-background flex flex-col">
-          <Tabs defaultValue="savepoints" className="h-full flex flex-col min-h-0">
+      <ResizablePanel defaultSize={25} minSize={15} className="h-full min-h-0 overflow-hidden">
+        <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
+          <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
             <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
               <TabsList>
                 <TabsTrigger value="savepoints" className="flex items-center gap-2">
@@ -268,7 +270,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               </TabsList>
             </div>
             
-            <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">
               <TabsContent value="savepoints" className="h-full m-0 p-4">
                 <SavePointsPanel
                   savePoints={savePoints}

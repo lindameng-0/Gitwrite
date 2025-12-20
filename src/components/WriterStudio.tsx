@@ -63,7 +63,7 @@ const WriterStudio = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-dvh min-h-screen bg-background flex flex-col overflow-hidden">
       {/* Header with user menu */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
         <div className="flex justify-between items-center">
@@ -99,7 +99,7 @@ const WriterStudio = () => {
         </div>
       </div>
       
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <StoryBranchStudio
         branches={branches}
         chapters={chapters}

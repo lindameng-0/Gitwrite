@@ -85,8 +85,8 @@ const StoryEditorSidebar: React.FC<StoryEditorSidebarProps> = ({
   };
 
   return (
-    <div className="w-full bg-white shadow-sm h-full flex flex-col">
-      <div className="p-4 flex-1 overflow-y-auto">
+    <div className="w-full bg-white shadow-sm h-full min-h-0 flex flex-col">
+      <div className="p-4 flex-1 min-h-0 overflow-y-auto scroll-stable">
         {/* Branches Section */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">

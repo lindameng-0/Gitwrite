@@ -67,8 +67,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   };
 
   return (
-    <div className="h-full bg-gradient-to-br from-blue-50 to-indigo-50">
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
+    <div className="h-full min-h-0 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full min-h-0 flex flex-col">
         <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
           <TabsList className="bg-gray-100">
             <TabsTrigger value="editor" className="flex items-center gap-2">
@@ -82,8 +82,8 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
           </TabsList>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <TabsContent value="editor" className="h-full m-0">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <TabsContent value="editor" className="h-full min-h-0 m-0 overflow-hidden">
             <StoryEditor 
               branches={branches}
               chapters={chapters}
@@ -106,7 +106,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
             />
           </TabsContent>
           
-          <TabsContent value="branches" className="h-full m-0">
+          <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
             <BranchVisualizer 
               ref={branchVisualizerRef}
               branches={branches}
