@@ -1,17 +1,18 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import StoryBranchStudio from './StoryBranchStudio';
 import StudioSelector from './StudioSelector';
 import StudioSettings from './StudioSettings';
 import UserMenu from './UserMenu';
+import ModeToggle, { type StudioMode } from './ModeToggle';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useStoryData } from '@/hooks/useStoryData';
 import { useAuth } from '@/hooks/useAuth';
-import { useStudios, type Studio } from '@/hooks/useStudios';
+import { useStudios } from '@/hooks/useStudios';
 import { useStudioRole } from '@/hooks/useStudioRole';
-import { ArrowLeft, Settings, Shield, Pencil } from 'lucide-react';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+
+const STUDIO_MODE_KEY = 'studio-mode-preference';
 
 const WriterStudio = () => {
   const { profile, user } = useAuth();
@@ -20,11 +21,26 @@ const WriterStudio = () => {
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
+  // Mode state with localStorage persistence
+  const [currentMode, setCurrentMode] = useState<StudioMode>(() => {
+    const saved = localStorage.getItem(STUDIO_MODE_KEY);
+    return (saved === 'admin' || saved === 'writer') ? saved : 'writer';
+  });
+  
   const selectedStudioId = studioId || null;
   const selectedStudio = studios.find(s => s.id === selectedStudioId);
   
   // Get user's role in this studio
-  const { isAdmin, loading: roleLoading } = useStudioRole(selectedStudioId);
+  const { isAdmin, canSwitchModes, loading: roleLoading } = useStudioRole(selectedStudioId);
+  
+  // Handle mode change with persistence
+  const handleModeChange = useCallback((mode: StudioMode) => {
+    setCurrentMode(mode);
+    localStorage.setItem(STUDIO_MODE_KEY, mode);
+  }, []);
+  
+  // Determine if we're in "admin view" - only true if user is admin AND in admin mode
+  const isInAdminMode = canSwitchModes && currentMode === 'admin';
   
   const {
     story,
@@ -117,7 +133,13 @@ const WriterStudio = () => {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Mode Toggle for admins */}
+            <ModeToggle
+              currentMode={currentMode}
+              onModeChange={handleModeChange}
+              canSwitchModes={canSwitchModes}
+            />
             <Button 
               variant="outline" 
               size="sm" 
@@ -153,7 +175,7 @@ const WriterStudio = () => {
           onMergeStoryVersion={mergeStoryVersion}
           onMoveChapter={moveChapterToBranch}
           onSaveBranchPosition={saveBranchPosition}
-          isAdmin={isAdmin}
+          isAdmin={isInAdminMode}
           currentUserName={currentUserName}
         />
       </div>

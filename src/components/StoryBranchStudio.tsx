@@ -102,12 +102,12 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               {isAdmin ? (
                 <>
                   <Shield className="w-3.5 h-3.5" />
-                  Admin Mode
+                  Review Mode
                 </>
               ) : (
                 <>
                   <Pencil className="w-3.5 h-3.5" />
-                  Writer Mode
+                  Writing Mode
                 </>
               )}
             </Badge>
