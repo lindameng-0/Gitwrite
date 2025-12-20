@@ -105,14 +105,12 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
       </div>
       
       {/* Rich Text Editor */}
-      <div className="flex-1 min-h-0 overflow-hidden p-4 bg-muted/30">
-        <div className="h-full max-w-5xl mx-auto">
-          <RichTextEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Begin writing your chapter..."
-          />
-        </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <RichTextEditor
+          content={content}
+          onChange={handleContentChange}
+          placeholder="Begin writing your chapter..."
+        />
       </div>
     </div>
   );
