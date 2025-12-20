@@ -166,6 +166,8 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
   );
 };
 
+const PANEL_LAYOUT_KEY = 'story-editor-panel-layout';
+
 const StoryEditor: React.FC<StoryEditorProps> = ({
   branches,
   chapters,
@@ -188,6 +190,22 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const { toast } = useToast()
+
+  const getDefaultLayout = (): number[] => {
+    const saved = localStorage.getItem(PANEL_LAYOUT_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return [25, 50, 25];
+      }
+    }
+    return [25, 50, 25];
+  };
+
+  const handleLayoutChange = (sizes: number[]) => {
+    localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(sizes));
+  };
 
   const handleCreateBranch = async () => {
     if (!newBranchName.trim()) {
@@ -218,9 +236,15 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
     }
   };
 
+  const defaultLayout = getDefaultLayout();
+
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0 overflow-hidden">
-      <ResizablePanel defaultSize={25} minSize={15} className="h-full min-h-0 overflow-hidden">
+    <ResizablePanelGroup 
+      direction="horizontal" 
+      className="h-full min-h-0 overflow-hidden"
+      onLayout={handleLayoutChange}
+    >
+      <ResizablePanel defaultSize={defaultLayout[0]} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 overflow-hidden">
           <StoryEditorSidebar
             branches={branches}
@@ -241,7 +265,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors" />
       
-      <ResizablePanel defaultSize={50} minSize={30} className="h-full min-h-0 overflow-hidden">
+      <ResizablePanel defaultSize={defaultLayout[1]} minSize={30} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 overflow-hidden">
           <StoryEditorContent
             chapters={chapters}
@@ -254,7 +278,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors" />
       
-      <ResizablePanel defaultSize={25} minSize={15} className="h-full min-h-0 overflow-hidden">
+      <ResizablePanel defaultSize={defaultLayout[2]} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
           <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
             <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
