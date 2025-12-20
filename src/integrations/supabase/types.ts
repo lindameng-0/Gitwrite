@@ -289,6 +289,50 @@ export type Database = {
           },
         ]
       }
+      studio_invites: {
+        Row: {
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          invite_code: string
+          max_uses: number | null
+          role: string
+          studio_id: string
+          uses_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          invite_code: string
+          max_uses?: number | null
+          role?: string
+          studio_id: string
+          uses_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          invite_code?: string
+          max_uses?: number | null
+          role?: string
+          studio_id?: string
+          uses_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_invites_studio_id_fkey"
+            columns: ["studio_id"]
+            isOneToOne: false
+            referencedRelation: "studios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_members: {
         Row: {
           id: string
