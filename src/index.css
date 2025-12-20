@@ -104,6 +104,88 @@
   }
 }
 
+/* TipTap Editor Styles */
+.tiptap {
+  @apply font-serif text-foreground;
+}
+
+.tiptap:focus {
+  @apply outline-none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  @apply text-muted-foreground pointer-events-none float-left h-0;
+  content: attr(data-placeholder);
+}
+
+.tiptap h1 {
+  @apply text-3xl font-bold mb-4 mt-6 text-foreground;
+}
+
+.tiptap h2 {
+  @apply text-2xl font-semibold mb-3 mt-5 text-foreground;
+}
+
+.tiptap h3 {
+  @apply text-xl font-medium mb-2 mt-4 text-foreground;
+}
+
+.tiptap p {
+  @apply mb-3 leading-relaxed;
+}
+
+.tiptap ul {
+  @apply list-disc list-inside mb-3 ml-4;
+}
+
+.tiptap ol {
+  @apply list-decimal list-inside mb-3 ml-4;
+}
+
+.tiptap li {
+  @apply mb-1;
+}
+
+.tiptap blockquote {
+  @apply border-l-4 border-primary pl-4 italic my-4 text-muted-foreground;
+}
+
+.tiptap hr {
+  @apply my-6 border-border;
+}
+
+.tiptap mark {
+  @apply bg-yellow-200 dark:bg-yellow-500/30 rounded px-0.5;
+}
+
+.tiptap strong {
+  @apply font-bold;
+}
+
+.tiptap em {
+  @apply italic;
+}
+
+.tiptap u {
+  @apply underline;
+}
+
+.tiptap s {
+  @apply line-through;
+}
+
+.tiptap code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.tiptap pre {
+  @apply bg-muted p-4 rounded-lg my-4 overflow-x-auto;
+}
+
+.tiptap pre code {
+  @apply bg-transparent p-0;
+}
+
 /* Scroll containers should not cause layout shift when scrollbars appear/disappear */
 .scroll-stable {
   scrollbar-gutter: stable;
