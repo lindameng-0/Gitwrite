@@ -223,14 +223,9 @@ const StudioSettings = ({ studio, isOpen, onClose }: StudioSettingsProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              <DialogTitle>Studio Settings</DialogTitle>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            <DialogTitle>Studio Settings</DialogTitle>
           </div>
           <DialogDescription>
             Manage your studio settings and collaborators.
