@@ -470,33 +470,34 @@ export const useStoryData = (studioId?: string | null) => {
   };
 
   const switchToBranch = async (branchId: string) => {
-    if (!story) return;
+    if (!story || branchId === activeBranch) return;
     
+    // Optimistically update UI first for responsiveness
+    setBranches(prev => prev.map(branch => ({
+      ...branch,
+      isActive: branch.id === branchId,
+      is_active: branch.id === branchId
+    })));
+    setActiveBranch(branchId);
+    setActiveChapter(''); // Reset active chapter when switching branches
+
     try {
-      const { error: updateError } = await supabase
-        .from('story_branches')
-        .update({ is_active: false })
-        .eq('story_id', story.id);
-
-      if (updateError) throw updateError;
-
-      const { error: activateError } = await supabase
-        .from('story_branches')
-        .update({ is_active: true })
-        .eq('id', branchId);
-
-      if (activateError) throw activateError;
-
-      setBranches(prev => prev.map(branch => ({
-        ...branch,
-        isActive: branch.id === branchId,
-        is_active: branch.id === branchId
-      })));
-
-      setActiveBranch(branchId);
-      setActiveChapter(''); // Reset active chapter when switching branches
+      // Update database in background - batch both updates
+      await Promise.all([
+        supabase
+          .from('story_branches')
+          .update({ is_active: false })
+          .eq('story_id', story.id)
+          .neq('id', branchId),
+        supabase
+          .from('story_branches')
+          .update({ is_active: true })
+          .eq('id', branchId)
+      ]);
     } catch (error) {
       console.error('Error switching branch:', error);
+      // Revert on error
+      await loadStoryData();
     }
   };
 
