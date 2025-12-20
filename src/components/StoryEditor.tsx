@@ -144,7 +144,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({ chapters, activ
 
   if (!chapter) {
     return (
-      <div className="flex items-center justify-center h-full bg-white overflow-hidden">
+      <div className="flex items-center justify-center h-full bg-white">
         <Card className="p-6 text-center">
           <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Chapter Selected</h3>
@@ -217,9 +217,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   };
 
   return (
-    <ResizablePanelGroup direction="horizontal" className="h-full">
-      <ResizablePanel defaultSize={25} minSize={15} className="overflow-hidden">
-        <div className="h-full overflow-y-auto">
+    <ResizablePanelGroup direction="horizontal" className="h-full min-h-0">
+      <ResizablePanel defaultSize={25} minSize={15} className="min-h-0">
+        <div className="h-full">
           <StoryEditorSidebar
             branches={branches}
             chapters={chapters}
@@ -239,20 +239,22 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       
       <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={50} minSize={30} className="overflow-hidden">
-        <StoryEditorContent
-          chapters={chapters}
-          activeChapter={activeChapter}
-          onUpdateChapterContent={onUpdateChapterContent}
-          onSubmitChapterForReview={onSubmitChapterForReview}
-        />
+      <ResizablePanel defaultSize={50} minSize={30} className="min-h-0">
+        <div className="h-full overflow-hidden">
+          <StoryEditorContent
+            chapters={chapters}
+            activeChapter={activeChapter}
+            onUpdateChapterContent={onUpdateChapterContent}
+            onSubmitChapterForReview={onSubmitChapterForReview}
+          />
+        </div>
       </ResizablePanel>
       
       <ResizableHandle className="bg-border w-px" />
       
-      <ResizablePanel defaultSize={25} minSize={15} className="overflow-hidden">
-        <div className="h-full bg-background flex flex-col overflow-hidden">
-          <Tabs defaultValue="savepoints" className="h-full flex flex-col overflow-hidden">
+      <ResizablePanel defaultSize={25} minSize={15} className="min-h-0">
+        <div className="h-full bg-background flex flex-col">
+          <Tabs defaultValue="savepoints" className="h-full flex flex-col min-h-0">
             <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
               <TabsList>
                 <TabsTrigger value="savepoints" className="flex items-center gap-2">
@@ -266,7 +268,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               </TabsList>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <TabsContent value="savepoints" className="h-full m-0 p-4">
                 <SavePointsPanel
                   savePoints={savePoints}
