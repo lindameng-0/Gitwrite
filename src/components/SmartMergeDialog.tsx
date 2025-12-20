@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { AlertTriangle, ArrowRight, FileText, GitMerge, Target, Plus, Replace, Brain, Star, TrendingUp, Zap } from 'lucide-react';
 import { analyzeContent, detectMergeConflicts, calculateSmartPositions, type ContentAnalysis, type MergeConflict, type SmartMergePosition } from '@/utils/contentAnalyzer';
 import { generateSmartMergeRecommendations, type SmartMergeRecommendation } from '@/utils/smartMergeAnalyzer';
-import MergePreviewPanel from './MergePreviewPanel';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
 
 export type MergeMode = 'replace' | 'insert' | 'append' | 'subplot' | 'flashback';
@@ -245,14 +244,14 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                   <RadioGroupItem value="replace" id="replace" className="mt-1" />
                   <div className="flex-1">
                     <Label htmlFor="replace" className="flex items-center gap-2 font-medium">
-                      <Replace className="w-4 h-4 text-amber-600" />
-                      Update Existing Chapter
+                      <Replace className="w-4 h-4 text-red-600" />
+                      Replace Existing Chapter
                       {topRecommendation?.mode === 'replace' && (
-                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">Recommended</Badge>
+                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">AI Recommended</Badge>
                       )}
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1 mb-2">
-                      Replace a chapter with this improved or alternate version
+                    <p className="text-sm text-gray-600 mt-1 mb-2">
+                      Replace an existing chapter with this improved/alternate version
                     </p>
                     {mergeMode === 'replace' && (
                       <Select value={replaceChapterId} onValueChange={setReplaceChapterId}>
@@ -285,14 +284,14 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                   <RadioGroupItem value="insert" id="insert" className="mt-1" />
                   <div className="flex-1">
                     <Label htmlFor="insert" className="flex items-center gap-2 font-medium">
-                      <Target className="w-4 h-4 text-blue-600" />
-                      Add Between Chapters
+                      <Star className="w-4 h-4 text-green-600" />
+                      Smart Insert
                       {topRecommendation?.mode === 'insert' && (
-                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">Recommended</Badge>
+                        <Badge className="bg-green-100 text-green-800 text-xs ml-2">AI Recommended</Badge>
                       )}
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1 mb-2">
-                      Insert at a specific position in the story
+                    <p className="text-sm text-gray-600 mt-1 mb-2">
+                      AI analyzes content flow to find the optimal insertion point
                     </p>
                     {mergeMode === 'insert' && smartPositions.length > 0 && (
                       <div className="space-y-2">
@@ -326,27 +325,14 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                 </div>
 
                 <div className="flex items-start space-x-3">
-                  <RadioGroupItem value="append" id="append" className="mt-1" />
-                  <div className="flex-1">
-                    <Label htmlFor="append" className="flex items-center gap-2 font-medium">
-                      <Plus className="w-4 h-4 text-emerald-600" />
-                      Add to End
-                    </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Add this chapter as the next chapter in the story
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start space-x-3">
                   <RadioGroupItem value="subplot" id="subplot" className="mt-1" />
                   <div className="flex-1">
                     <Label htmlFor="subplot" className="flex items-center gap-2 font-medium">
                       <GitMerge className="w-4 h-4 text-purple-600" />
-                      Weave as Parallel Story
+                      Merge as Subplot
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Integrate as an interconnected storyline that runs alongside the main plot
+                    <p className="text-sm text-gray-600 mt-1">
+                      Integrate this chapter as a parallel storyline that weaves through existing content
                     </p>
                   </div>
                 </div>
@@ -356,10 +342,23 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
                   <div className="flex-1">
                     <Label htmlFor="flashback" className="flex items-center gap-2 font-medium">
                       <FileText className="w-4 h-4 text-indigo-600" />
-                      Add as Backstory
+                      Insert as Flashback
                     </Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Insert as historical context that enriches the current narrative
+                    <p className="text-sm text-gray-600 mt-1">
+                      Add contextual background that enhances understanding of current events
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="append" id="append" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="append" className="flex items-center gap-2 font-medium">
+                      <Plus className="w-4 h-4 text-green-600" />
+                      Append to End
+                    </Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Add this chapter at the end of the story
                     </p>
                   </div>
                 </div>
@@ -367,20 +366,9 @@ const SmartMergeDialog: React.FC<SmartMergeDialogProps> = ({
             </RadioGroup>
           </Card>
 
-          {/* Merge Preview */}
-          {chapter && targetChapters.length > 0 && (
-            <MergePreviewPanel
-              sourceChapter={chapter}
-              targetChapters={targetChapters}
-              mergeMode={mergeMode}
-              targetPosition={targetPosition}
-              replaceChapterId={replaceChapterId}
-            />
-          )}
-
           {/* Merge Note */}
           <Card className="p-4">
-            <Label htmlFor="merge-note" className="text-sm font-medium text-foreground">
+            <Label htmlFor="merge-note" className="text-sm font-medium text-gray-700">
               Merge Note (Optional)
             </Label>
             <Textarea

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import BranchCreationForm from './BranchCreationForm';
-import ChapterStatusPipeline from './ChapterStatusPipeline';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface StoryEditorSidebarProps {
@@ -143,7 +143,7 @@ const StoryEditorSidebar: React.FC<StoryEditorSidebarProps> = ({
         </div>
 
         {/* Chapters Section */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <FileText className="w-5 h-5 text-story-600" />
             Chapters
@@ -156,12 +156,6 @@ const StoryEditorSidebar: React.FC<StoryEditorSidebarProps> = ({
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-
-        {/* Status Pipeline */}
-        <ChapterStatusPipeline 
-          chapters={chapters}
-          activeChapter={activeChapter}
-        />
 
         {isCreatingChapter && (
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">

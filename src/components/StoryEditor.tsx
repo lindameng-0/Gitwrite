@@ -139,9 +139,6 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
             activeChapter={activeChapter}
             onUpdateChapterContent={onUpdateChapterContent}
             onSubmitChapterForReview={onSubmitChapterForReview}
-            branches={branches}
-            activeBranch={activeBranch}
-            onMergeChapter={onMergeChapter}
           />
         </div>
       </ResizablePanel>
