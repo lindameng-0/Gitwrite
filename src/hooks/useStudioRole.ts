@@ -14,6 +14,7 @@ interface StudioRoleState {
   canReview: boolean;
   canCreateBranch: boolean;
   canEditAnyChapter: boolean;
+  canSwitchModes: boolean;
   loading: boolean;
 }
 
@@ -83,6 +84,9 @@ export const useStudioRole = (studioId: string | null): StudioRoleState => {
   
   // Writer+ capabilities
   const canCreateBranch = isWriter;
+  
+  // Mode switching: only admins and owners can switch between modes
+  const canSwitchModes = isAdmin;
 
   return {
     role,
@@ -94,6 +98,7 @@ export const useStudioRole = (studioId: string | null): StudioRoleState => {
     canReview,
     canCreateBranch,
     canEditAnyChapter,
+    canSwitchModes,
     loading
   };
 };
