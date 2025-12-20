@@ -127,8 +127,8 @@ const StudioSelector = ({ onStudioSelect }: StudioSelectorProps) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {studios.map((studio) => (
-            <Card key={studio.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
+            <Card key={studio.id} className="hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
+              <CardHeader className="flex-1">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="flex items-center gap-2">
@@ -137,15 +137,13 @@ const StudioSelector = ({ onStudioSelect }: StudioSelectorProps) => {
                         <Crown className="h-4 w-4 text-blue-600" />
                       )}
                     </CardTitle>
-                    {studio.description && (
-                      <CardDescription className="mt-2">
-                        {studio.description}
-                      </CardDescription>
-                    )}
+                    <CardDescription className="mt-2 min-h-[1.25rem]">
+                      {studio.description || '\u00A0'}
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="mt-auto">
                 <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
