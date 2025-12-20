@@ -5,25 +5,37 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, Save, MessageSquare } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import RichTextEditor from './RichTextEditor';
-import type { ChapterWithReviews } from '@/hooks/useStoryData';
+import QuickMergeButton from './QuickMergeButton';
+import type { ChapterWithReviews, StoryBranchWithMeta } from '@/hooks/useStoryData';
+import type { MergeMode } from './SmartMergeDialog';
 
 interface StoryEditorContentProps {
   chapters: ChapterWithReviews[];
   activeChapter: string;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  // Quick merge support
+  branches?: StoryBranchWithMeta[];
+  activeBranch?: string;
+  onMergeChapter?: (chapterId: string, targetBranchId: string, mode: MergeMode, mergeNote?: string, targetPosition?: number) => Promise<boolean>;
 }
 
 interface ChapterContentProps {
   chapter: ChapterWithReviews;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  branches?: StoryBranchWithMeta[];
+  activeBranch?: string;
+  onMergeChapter?: (chapterId: string, targetBranchId: string, mode: MergeMode, mergeNote?: string, targetPosition?: number) => Promise<boolean>;
 }
 
 const ChapterContent: React.FC<ChapterContentProps> = ({ 
   chapter, 
   onUpdateChapterContent, 
-  onSubmitChapterForReview 
+  onSubmitChapterForReview,
+  branches,
+  activeBranch,
+  onMergeChapter,
 }) => {
   const [content, setContent] = useState(chapter.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -90,7 +102,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
             <span className="text-sm text-muted-foreground">by {chapter.author_name}</span>
           </div>
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center gap-2">
           <Button size="sm" onClick={handleSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? 'Saving...' : 'Save'}
@@ -100,6 +112,14 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
               <MessageSquare className="w-4 h-4 mr-2" />
               Submit for Review
             </Button>
+          )}
+          {chapter.status === 'approved' && branches && activeBranch && onMergeChapter && (
+            <QuickMergeButton
+              chapter={chapter}
+              branches={branches}
+              activeBranch={activeBranch}
+              onMergeChapter={onMergeChapter}
+            />
           )}
         </div>
       </div>
@@ -120,7 +140,10 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   chapters, 
   activeChapter, 
   onUpdateChapterContent, 
-  onSubmitChapterForReview 
+  onSubmitChapterForReview,
+  branches,
+  activeBranch,
+  onMergeChapter,
 }) => {
   const chapter = chapters.find(c => c.id === activeChapter);
 
@@ -144,6 +167,9 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
       chapter={chapter} 
       onUpdateChapterContent={onUpdateChapterContent}
       onSubmitChapterForReview={onSubmitChapterForReview}
+      branches={branches}
+      activeBranch={activeBranch}
+      onMergeChapter={onMergeChapter}
     />
   );
 };
