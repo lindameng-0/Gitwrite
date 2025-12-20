@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import StoryBranchStudio from './StoryBranchStudio';
 import StudioSelector from './StudioSelector';
 import StudioSettings from './StudioSettings';
@@ -14,7 +14,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 const WriterStudio = () => {
   const { profile } = useAuth();
   const { studios } = useStudios();
-  const { studioId } = useParams<{ studioId: string }>();
+  const { studioId, branchId, chapterId } = useParams<{ studioId: string; branchId?: string; chapterId?: string }>();
   const navigate = useNavigate();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -45,7 +45,32 @@ const WriterStudio = () => {
     loadChaptersFromBranch,
     moveChapterToBranch,
     saveBranchPosition
-  } = useStoryData(selectedStudioId);
+  } = useStoryData(selectedStudioId, branchId, chapterId);
+
+  // Sync URL with active branch/chapter
+  useEffect(() => {
+    if (selectedStudioId && activeBranch) {
+      const newPath = activeChapter 
+        ? `/studio/${selectedStudioId}/${activeBranch}/${activeChapter}`
+        : `/studio/${selectedStudioId}/${activeBranch}`;
+      
+      // Only update if different to avoid loops
+      const currentPath = window.location.pathname;
+      if (currentPath !== newPath) {
+        navigate(newPath, { replace: true });
+      }
+    }
+  }, [selectedStudioId, activeBranch, activeChapter, navigate]);
+
+  // Wrapper for branch switching
+  const handleSwitchBranch = useCallback(async (newBranchId: string) => {
+    await switchToBranch(newBranchId);
+  }, [switchToBranch]);
+
+  // Wrapper for chapter switching
+  const handleSwitchChapter = useCallback((newChapterId: React.SetStateAction<string>) => {
+    setActiveChapter(newChapterId);
+  }, [setActiveChapter]);
 
   if (!selectedStudioId || !selectedStudio) {
     return <StudioSelector onStudioSelect={(id) => navigate(`/studio/${id}`)} />;
@@ -112,8 +137,8 @@ const WriterStudio = () => {
         onSubmitChapterForReview={submitChapterForReview}
         onReviewChapter={reviewChapter}
         onCreateBranch={createNewBranch}
-        onSwitchBranch={switchToBranch}
-        onSwitchChapter={setActiveChapter}
+        onSwitchBranch={handleSwitchBranch}
+        onSwitchChapter={handleSwitchChapter}
         onRestoreSavePoint={restoreSavePoint}
         onLoadTargetChapters={loadChaptersFromBranch}
         onMergeChapter={mergeChapter}

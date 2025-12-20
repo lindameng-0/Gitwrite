@@ -21,6 +21,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/studio/:studioId" element={<Index />} />
+            <Route path="/studio/:studioId/:branchId" element={<Index />} />
+            <Route path="/studio/:studioId/:branchId/:chapterId" element={<Index />} />
             <Route path="/invite/:code" element={<InvitePage />} />
             <Route path="/reset-password" element={<PasswordResetHandler />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
