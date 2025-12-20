@@ -239,7 +239,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         </div>
       </ResizablePanel>
       
-      <ResizableHandle className="bg-border w-px" />
+      <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors" />
       
       <ResizablePanel defaultSize={50} minSize={30} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 overflow-hidden">
@@ -252,7 +252,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
         </div>
       </ResizablePanel>
       
-      <ResizableHandle className="bg-border w-px" />
+      <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors" />
       
       <ResizablePanel defaultSize={25} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
