@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { GitBranch, FileText, ArrowRight, CheckCircle, AlertTriangle, GitMerge, Brain } from 'lucide-react';
+import { GitBranch, FileText, AlertTriangle, Brain, MousePointer } from 'lucide-react';
 import SmartMergeDialog, { type MergeMode } from './SmartMergeDialog';
+import ManualMergeDialog from './ManualMergeDialog';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface MergeInterfaceProps {
@@ -32,6 +33,13 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
   const [isMerging, setIsMerging] = useState(false);
   const [targetChapters, setTargetChapters] = useState<ChapterWithReviews[]>([]);
   const [smartMergeDialog, setSmartMergeDialog] = useState<{
+    isOpen: boolean;
+    chapter: ChapterWithReviews | null;
+  }>({
+    isOpen: false,
+    chapter: null
+  });
+  const [manualMergeDialog, setManualMergeDialog] = useState<{
     isOpen: boolean;
     chapter: ChapterWithReviews | null;
   }>({
@@ -73,6 +81,70 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       isOpen: true,
       chapter
     });
+  };
+
+  const handleManualMergeChapter = (chapter: ChapterWithReviews) => {
+    if (!selectedTargetBranch) {
+      toast({
+        title: "Select target version",
+        description: "Please select which story version to merge into.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setManualMergeDialog({
+      isOpen: true,
+      chapter
+    });
+  };
+
+  const handleManualMergeWithOptions = async (
+    chapterId: string,
+    mode: MergeMode,
+    targetPosition?: number,
+    replaceChapterId?: string,
+    dialogMergeNote?: string
+  ) => {
+    if (!selectedTargetBranch) return false;
+
+    setIsMerging(true);
+    try {
+      const success = await onMergeChapter(
+        chapterId,
+        selectedTargetBranch,
+        mode,
+        dialogMergeNote || mergeNote,
+        targetPosition,
+        replaceChapterId
+      );
+      
+      if (success) {
+        toast({
+          title: "Merge completed!",
+          description: `Chapter merged successfully.`,
+        });
+        setMergeNote('');
+        handleTargetBranchChange(selectedTargetBranch);
+      } else {
+        toast({
+          title: "Merge failed",
+          description: "There was an issue merging the chapter.",
+          variant: "destructive",
+        });
+      }
+      return success;
+    } catch (error) {
+      console.error('Manual merge error:', error);
+      toast({
+        title: "Merge error",
+        description: "An unexpected error occurred during the merge.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsMerging(false);
+    }
   };
 
   const handleMergeWithOptions = async (
@@ -179,14 +251,14 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     <div className="space-y-6">
       {/* Merge Target Selection */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Brain className="w-5 h-5 text-indigo-600" />
-          AI-Powered Merge Controls
+        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+          <GitBranch className="w-5 h-5 text-primary" />
+          Merge Controls
         </h3>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Merge into story version:
             </label>
             <Select value={selectedTargetBranch} onValueChange={handleTargetBranchChange}>
@@ -198,7 +270,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                   <SelectItem key={branch.id} value={branch.id}>
                     {branch.is_main ? 'Main Story' : (branch.name || 'Unnamed Branch')}
                     {targetChapters.length > 0 && branch.id === selectedTargetBranch && (
-                      <span className="ml-2 text-xs text-gray-500">
+                      <span className="ml-2 text-xs text-muted-foreground">
                         ({targetChapters.length} chapters)
                       </span>
                     )}
@@ -209,7 +281,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Default merge note (optional):
             </label>
             <Textarea
@@ -225,9 +297,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       {/* Individual Chapter Merges */}
       {approvedChapters.length > 0 && (
         <Card className="p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Brain className="w-5 h-5 text-green-600" />
-            AI-Powered Chapter Merging
+          <h4 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-green-600" />
+            Chapter Merging
           </h4>
           
           <div className="space-y-3">
@@ -235,45 +307,66 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
               const wordCount = chapter.content ? chapter.content.split(' ').filter(w => w.length > 0).length : 0;
               
               return (
-                <div key={chapter.id} className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div key={chapter.id} className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4 text-green-600" />
                     <div>
-                      <h5 className="font-medium text-gray-900">{chapter.title || 'Untitled Chapter'}</h5>
-                      <p className="text-sm text-gray-600">
+                      <h5 className="font-medium text-foreground">{chapter.title || 'Untitled Chapter'}</h5>
+                      <p className="text-sm text-muted-foreground">
                         Chapter {chapter.chapter_order} • {wordCount} words
                       </p>
                     </div>
-                    <Badge className="bg-green-100 text-green-800">
-                      Ready for AI Merge
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
+                      Ready to Merge
                     </Badge>
                   </div>
                   
-                  <Button 
-                    onClick={() => handleSmartMergeChapter(chapter)}
-                    size="sm" 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                    disabled={!selectedTargetBranch}
-                  >
-                    <Brain className="w-4 h-4 mr-2" />
-                    AI Smart Merge
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => handleManualMergeChapter(chapter)}
+                      size="sm" 
+                      variant="outline"
+                      disabled={!selectedTargetBranch}
+                    >
+                      <MousePointer className="w-4 h-4 mr-2" />
+                      Quick Merge
+                    </Button>
+                    <Button 
+                      onClick={() => handleSmartMergeChapter(chapter)}
+                      size="sm" 
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                      disabled={!selectedTargetBranch}
+                    >
+                      <Brain className="w-4 h-4 mr-2" />
+                      AI Merge
+                    </Button>
+                  </div>
                 </div>
               );
             })}
           </div>
           
-          <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-            <div className="flex items-start gap-2">
-              <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="text-sm text-blue-900 font-medium mb-1">Enhanced AI Smart Merge Features:</p>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Content similarity detection for alternate versions</li>
-                  <li>• Character and dialogue conflict resolution</li>
-                  <li>• Intelligent positioning with conflict prevention</li>
-                  <li>• Plot continuity analysis and suggestions</li>
-                </ul>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-start gap-2">
+                <MousePointer className="w-5 h-5 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium mb-1">Quick Merge</p>
+                  <p className="text-xs text-muted-foreground">
+                    Manually choose where to place the chapter: before, after, or replace an existing chapter.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-2">
+                <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">AI Merge</p>
+                  <p className="text-xs text-blue-800 dark:text-blue-200">
+                    AI analyzes content to suggest optimal placement and detect conflicts.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -358,6 +451,18 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
         targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
           (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}
         onMerge={handleMergeWithOptions}
+      />
+
+      {/* Manual Merge Dialog */}
+      <ManualMergeDialog
+        isOpen={manualMergeDialog.isOpen}
+        onClose={() => setManualMergeDialog({ isOpen: false, chapter: null })}
+        chapter={manualMergeDialog.chapter}
+        targetChapters={targetChapters}
+        sourceBranchName={currentBranch?.is_main ? 'Main Story' : (currentBranch?.name || 'Unknown')}
+        targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
+          (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}
+        onMerge={handleManualMergeWithOptions}
       />
     </div>
   );
