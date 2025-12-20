@@ -64,47 +64,35 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   if (!editor) {
     return (
-      <div className="flex flex-col h-full bg-background rounded-lg border border-border shadow-sm">
+      <div className="flex flex-col h-full bg-background border-x border-border">
         <div className="h-10 border-b border-border bg-muted/30 animate-pulse" />
         <div className="flex-1 p-8">
-          <div className="h-4 bg-muted rounded w-3/4 mb-4 animate-pulse" />
-          <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+          <div className="h-4 bg-muted w-3/4 mb-4 animate-pulse" />
+          <div className="h-4 bg-muted w-1/2 animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-background rounded-lg border border-border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-background border-x border-border overflow-hidden">
       <EditorToolbar editor={editor} />
-      <div className="flex-1 overflow-auto bg-background">
-        <div className="max-w-[816px] mx-auto min-h-full bg-card shadow-sm">
+      <div className="flex-1 overflow-auto bg-muted/20">
+        <div className="max-w-none min-h-full bg-card">
           <EditorContent editor={editor} className="h-full" />
         </div>
       </div>
       
-      {/* Word count footer */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-t border-border bg-muted/30 text-xs text-muted-foreground">
-        <div className="flex items-center gap-4">
-          <span>
-            {editor.storage.characterCount?.words?.() ?? 
-              editor.getText().split(/\s+/).filter(word => word.length > 0).length} words
-          </span>
-          <span>
-            {editor.storage.characterCount?.characters?.() ?? 
-              editor.getText().length} characters
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+B</kbd>
-          <span>Bold</span>
-          <span className="text-border">•</span>
-          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+I</kbd>
-          <span>Italic</span>
-          <span className="text-border">•</span>
-          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Ctrl+U</kbd>
-          <span>Underline</span>
-        </div>
+      {/* Minimal status bar */}
+      <div className="flex items-center justify-between px-4 py-1 border-t border-border bg-muted/40 text-[11px] text-muted-foreground">
+        <span>
+          {editor.storage.characterCount?.words?.() ?? 
+            editor.getText().split(/\s+/).filter(word => word.length > 0).length} words
+        </span>
+        <span>
+          {editor.storage.characterCount?.characters?.() ?? 
+            editor.getText().length} chars
+        </span>
       </div>
     </div>
   );
