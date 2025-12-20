@@ -217,7 +217,6 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                   <SavePointsPanel
                     savePoints={savePoints}
                     onCreateSavePoint={onCreateSavePoint}
-                    onRestoreSavePoint={onRestoreSavePoint}
                   />
                 </TabsContent>
               </div>
