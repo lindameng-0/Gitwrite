@@ -104,6 +104,11 @@
   }
 }
 
+/* Scroll containers should not cause layout shift when scrollbars appear/disappear */
+.scroll-stable {
+  scrollbar-gutter: stable;
+}
+
 /* Custom scrollbar styles */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
