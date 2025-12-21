@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { GitBranch, Clock, BarChart3 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import StoryEditorSidebar from './StoryEditorSidebar';
+import ChapterFirstSidebar from './ChapterFirstSidebar';
 import StoryEditorContent from './StoryEditorContent';
 import SavePointsPanel from './SavePointsPanel';
 import MergeInterface from './MergeInterface';
@@ -22,6 +22,7 @@ interface StoryEditorProps {
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
+  onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
@@ -29,11 +30,9 @@ interface StoryEditorProps {
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: 'replace' | 'insert' | 'append' | 'subplot' | 'flashback', mergeNote?: string, targetPosition?: number, replaceChapterId?: string) => Promise<boolean>;
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
   onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
-  // Role-based props
   isAdmin?: boolean;
   currentUserName?: string;
 }
-
 
 const PANEL_LAYOUT_KEY = 'story-editor-panel-layout';
 
@@ -49,18 +48,21 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onSubmitChapterForReview,
   onReviewChapter,
   onCreateBranch,
+  onForkFromChapter,
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
   onLoadTargetChapters,
   onMergeChapter,
   onMergeStoryVersion,
-  isAdmin = true, // Default to true for backwards compatibility
+  isAdmin = true,
   currentUserName
 }) => {
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('');
-  const { toast } = useToast()
+  const { toast } = useToast();
+
+  // Get main branch and its chapters for sidebar
+  const mainBranch = branches.find(b => b.is_main);
+  const isOnMainBranch = mainBranch?.id === activeBranch;
 
   const getDefaultLayout = (): number[] => {
     const saved = localStorage.getItem(PANEL_LAYOUT_KEY);
@@ -68,43 +70,14 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       try {
         return JSON.parse(saved);
       } catch {
-        return [25, 50, 25];
+        return [22, 53, 25];
       }
     }
-    return [25, 50, 25];
+    return [22, 53, 25];
   };
 
   const handleLayoutChange = (sizes: number[]) => {
     localStorage.setItem(PANEL_LAYOUT_KEY, JSON.stringify(sizes));
-  };
-
-  const handleCreateBranch = async () => {
-    if (!newBranchName.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Branch name required",
-        description: "Please enter a name for the new branch.",
-      })
-      return;
-    }
-    
-    try {
-      const branchId = await onCreateBranch(newBranchName);
-      if (branchId) {
-        setNewBranchName('');
-        setIsCreatingBranch(false);
-        toast({
-          title: "Branch created",
-          description: `Successfully created branch "${newBranchName}".`,
-        })
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Failed to create branch",
-        description: "There was a problem creating the branch.",
-      })
-    }
   };
 
   const defaultLayout = getDefaultLayout();
@@ -115,22 +88,19 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       className="h-full min-h-0 overflow-hidden"
       onLayout={handleLayoutChange}
     >
-      <ResizablePanel defaultSize={defaultLayout[0]} minSize={15} className="h-full min-h-0 overflow-hidden">
+      <ResizablePanel defaultSize={defaultLayout[0]} minSize={18} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 overflow-hidden">
-          <StoryEditorSidebar
+          <ChapterFirstSidebar
             branches={branches}
             chapters={chapters}
             activeBranch={activeBranch}
             activeChapter={activeChapter}
-            newBranchName={newBranchName}
-            setNewBranchName={setNewBranchName}
-            isCreatingBranch={isCreatingBranch}
-            setIsCreatingBranch={setIsCreatingBranch}
             onCreateChapter={onCreateChapter}
-            onCreateBranch={handleCreateBranch}
             onSwitchBranch={onSwitchBranch}
             onSwitchChapter={onSwitchChapter}
+            onForkFromChapter={onForkFromChapter}
             currentUserName={currentUserName}
+            isAdmin={isAdmin}
           />
         </div>
       </ResizablePanel>
@@ -153,9 +123,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizablePanel defaultSize={defaultLayout[2]} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
           {isAdmin ? (
-            // Admin Mode: Show full merge interface
             <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
-              <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
+              <div className="bg-background border-b border-border px-4 py-2 shadow-sm flex-shrink-0">
                 <TabsList>
                   <TabsTrigger value="savepoints" className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
@@ -190,9 +159,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               </div>
             </Tabs>
           ) : (
-            // Writer Mode: Show simplified progress view
             <Tabs defaultValue="progress" className="h-full min-h-0 flex flex-col overflow-hidden">
-              <div className="bg-white border-b border-gray-200 px-4 py-2 shadow-sm flex-shrink-0">
+              <div className="bg-background border-b border-border px-4 py-2 shadow-sm flex-shrink-0">
                 <TabsList>
                   <TabsTrigger value="progress" className="flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" />

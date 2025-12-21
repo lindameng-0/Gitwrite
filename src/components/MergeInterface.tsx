@@ -238,6 +238,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
   // Check if current branch is protected (Main Story) - can't merge FROM it
   const isProtectedBranch = currentBranch?.is_protected || currentBranch?.is_main;
 
+  // Get main branch as the only valid merge target
+  const mainBranch = branches.find(b => b.is_main);
+
   if (isProtectedBranch) {
     return (
       <Card className="p-6 text-center">
@@ -253,62 +256,62 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     );
   }
 
-  if (approvedChapters.length === 0 && currentBranch?.is_main) {
+  if (approvedChapters.length === 0) {
     return (
       <Card className="p-6 text-center">
         <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-medium text-foreground mb-2">No Approved Content to Merge</h3>
         <p className="text-muted-foreground">
-          Chapters need to be approved before they can be merged between story versions.
+          Chapters need to be approved before they can be merged into the Main Story.
         </p>
       </Card>
     );
   }
 
+  if (!mainBranch) {
+    return (
+      <Card className="p-6 text-center">
+        <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">No Main Story Found</h3>
+        <p className="text-muted-foreground">
+          A main story branch is required for merging.
+        </p>
+      </Card>
+    );
+  }
+
+  // Auto-select main branch as target
+  React.useEffect(() => {
+    if (mainBranch && !selectedTargetBranch) {
+      handleTargetBranchChange(mainBranch.id);
+    }
+  }, [mainBranch?.id]);
+
   return (
     <div className="space-y-6">
-      {/* Merge Target Selection */}
-      <Card className="p-6">
+      {/* Merge Target - Fixed to Main Story */}
+      <Card className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
         <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-primary" />
-          Merge Controls
+          <Shield className="w-5 h-5 text-amber-600" />
+          Merge into Main Story
         </h3>
         
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Merge into story version:
-            </label>
-            <Select value={selectedTargetBranch} onValueChange={handleTargetBranchChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select target story version..." />
-              </SelectTrigger>
-              <SelectContent>
-                {targetBranches.map((branch) => (
-                  <SelectItem key={branch.id} value={branch.id}>
-                    {branch.is_main ? 'Main Story' : (branch.name || 'Unnamed Branch')}
-                    {targetChapters.length > 0 && branch.id === selectedTargetBranch && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        ({targetChapters.length} chapters)
-                      </span>
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          From branch: <span className="font-medium text-foreground">{currentBranch?.name || 'Current Branch'}</span>
+          {' → '}
+          <span className="font-medium text-amber-700 dark:text-amber-300">Main Story</span>
+        </p>
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Default merge note (optional):
-            </label>
-            <Textarea
-              placeholder="Describe what you're merging and why..."
-              value={mergeNote}
-              onChange={(e) => setMergeNote(e.target.value)}
-              className="min-h-[80px]"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-muted-foreground mb-2">
+            Merge note (optional):
+          </label>
+          <Textarea
+            placeholder="Describe what you're merging and why..."
+            value={mergeNote}
+            onChange={(e) => setMergeNote(e.target.value)}
+            className="min-h-[80px]"
+          />
         </div>
       </Card>
 
@@ -344,7 +347,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                       onClick={() => handleManualMergeChapter(chapter)}
                       size="sm" 
                       variant="outline"
-                      disabled={!selectedTargetBranch}
+                      disabled={!mainBranch || isMerging}
                     >
                       <MousePointer className="w-4 h-4 mr-2" />
                       Quick Merge
@@ -353,7 +356,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                       onClick={() => handleSmartMergeChapter(chapter)}
                       size="sm" 
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                      disabled={!selectedTargetBranch}
+                      disabled={!mainBranch || isMerging}
                     >
                       <Brain className="w-4 h-4 mr-2" />
                       AI Merge
@@ -392,72 +395,62 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
       )}
 
       {/* Full Story Version Merge */}
-      {!currentBranch?.is_main && (
-        <Card className="p-6">
-          <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <GitBranch className="w-5 h-5 text-purple-600" />
-            Merge Entire Story Version
-          </h4>
-          
-          <div className="bg-purple-50 p-4 rounded-lg mb-4">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 text-purple-600 mt-0.5" />
-              <div>
-                <p className="text-purple-900 font-medium mb-1">Advanced Merge Operation</p>
-                <p className="text-sm text-purple-800">
-                  This will merge all approved content from this story version into the target version. 
-                  Use this when you're ready to combine major story changes.
-                </p>
-              </div>
+      <Card className="p-6">
+        <h4 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
+          <GitBranch className="w-5 h-5 text-purple-600" />
+          Merge All Approved Chapters
+        </h4>
+        
+        <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-lg mb-4 border border-purple-200 dark:border-purple-800">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-purple-600 mt-0.5" />
+            <div>
+              <p className="text-purple-900 dark:text-purple-100 font-medium mb-1">Bulk Merge Operation</p>
+              <p className="text-sm text-purple-800 dark:text-purple-200">
+                This will merge all {approvedChapters.length} approved chapter(s) from this branch into the Main Story at once.
+              </p>
             </div>
           </div>
+        </div>
 
-          <Button 
-            onClick={async () => {
-              if (!selectedTargetBranch) {
+        <Button 
+          onClick={async () => {
+            if (!mainBranch) return;
+
+            setIsMerging(true);
+            try {
+              const success = await onMergeStoryVersion(activeBranch, mainBranch.id, mergeNote);
+              if (success) {
                 toast({
-                  title: "Select target version",
-                  description: "Please select which story version to merge into.",
+                  title: "Merged to Main Story!",
+                  description: "All approved chapters have been merged into the Main Story.",
+                });
+                setMergeNote('');
+              } else {
+                toast({
+                  title: "Merge failed",
+                  description: "There was an issue merging into the Main Story. Please try again.",
                   variant: "destructive",
                 });
-                return;
               }
-
-              setIsMerging(true);
-              try {
-                const success = await onMergeStoryVersion(activeBranch, selectedTargetBranch, mergeNote);
-                if (success) {
-                  toast({
-                    title: "Story version merged successfully!",
-                    description: "All approved content has been merged into the target story version.",
-                  });
-                  setMergeNote('');
-                } else {
-                  toast({
-                    title: "Merge failed",
-                    description: "There was an issue merging the story versions. Please try again.",
-                    variant: "destructive",
-                  });
-                }
-              } catch (error) {
-                toast({
-                  title: "Merge error",
-                  description: "An unexpected error occurred during the merge.",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsMerging(false);
-              }
-            }}
-            variant="outline" 
-            className="w-full border-purple-300 text-purple-700 hover:bg-purple-50"
-            disabled={!selectedTargetBranch || isMerging}
-          >
-            <GitBranch className="w-4 h-4 mr-2" />
-            {isMerging ? 'Merging Story Version...' : 'Merge Story Version'}
-          </Button>
-        </Card>
-      )}
+            } catch (error) {
+              toast({
+                title: "Merge error",
+                description: "An unexpected error occurred during the merge.",
+                variant: "destructive",
+              });
+            } finally {
+              setIsMerging(false);
+            }
+          }}
+          variant="outline" 
+          className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950"
+          disabled={!mainBranch || isMerging || approvedChapters.length === 0}
+        >
+          <GitBranch className="w-4 h-4 mr-2" />
+          {isMerging ? 'Merging to Main Story...' : `Merge ${approvedChapters.length} Chapter(s) to Main Story`}
+        </Button>
+      </Card>
 
       {/* Smart Merge Dialog */}
       <SmartMergeDialog
@@ -465,9 +458,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
         onClose={() => setSmartMergeDialog({ isOpen: false, chapter: null })}
         chapter={smartMergeDialog.chapter}
         targetChapters={targetChapters}
-        sourceBranchName={currentBranch?.is_main ? 'Main Story' : (currentBranch?.name || 'Unknown')}
-        targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
-          (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}
+        sourceBranchName={currentBranch?.name || 'Current Branch'}
+        targetBranchName="Main Story"
         onMerge={handleMergeWithOptions}
       />
 
@@ -477,9 +469,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
         onClose={() => setManualMergeDialog({ isOpen: false, chapter: null })}
         chapter={manualMergeDialog.chapter}
         targetChapters={targetChapters}
-        sourceBranchName={currentBranch?.is_main ? 'Main Story' : (currentBranch?.name || 'Unknown')}
-        targetBranchName={branches.find(b => b.id === selectedTargetBranch)?.is_main ? 'Main Story' : 
-          (branches.find(b => b.id === selectedTargetBranch)?.name || 'Unknown')}
+        sourceBranchName={currentBranch?.name || 'Current Branch'}
+        targetBranchName="Main Story"
         onMerge={handleManualMergeWithOptions}
       />
     </div>

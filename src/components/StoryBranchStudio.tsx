@@ -1,15 +1,10 @@
-
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { GitBranch, Plus, FileText, Save, Users, MessageSquare, CheckCircle, Clock, AlertTriangle, Shield, Pencil } from 'lucide-react';
+import { GitBranch, FileText, Shield, Pencil, BookOpen, History } from 'lucide-react';
 import StoryEditor from './StoryEditor';
 import BranchVisualizer, { BranchVisualizerRef } from './BranchVisualizer';
+import MainStoryPreview from './MainStoryPreview';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryBranchStudioProps {
@@ -33,9 +28,10 @@ interface StoryBranchStudioProps {
   onMergeStoryVersion: (sourceBranchId: string, targetBranchId: string, mergeNote?: string) => Promise<boolean>;
   onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
   onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
-  // Role-based props
   isAdmin?: boolean;
   currentUserName?: string;
+  // Main branch chapters for the preview
+  mainBranchChapters?: ChapterWithReviews[];
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -60,10 +56,15 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onMoveChapter,
   onSaveBranchPosition,
   isAdmin = true,
-  currentUserName
+  currentUserName,
+  mainBranchChapters
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
   const branchVisualizerRef = React.useRef<BranchVisualizerRef>(null);
+
+  // Get main branch
+  const mainBranch = branches.find(b => b.is_main);
+  const isOnMainBranch = mainBranch?.id === activeBranch;
 
   // Save positions when switching away from branches tab
   const handleTabChange = (newTab: string) => {
@@ -74,49 +75,70 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   };
 
   return (
-    <div className="h-full min-h-0 bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="h-full min-h-0 bg-gradient-to-br from-background to-muted/20">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full min-h-0 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+        <div className="bg-background border-b border-border px-6 py-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <TabsList className="bg-gray-100">
+            <TabsList className="bg-muted/50">
+              <TabsTrigger value="main-story" className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Main Story
+              </TabsTrigger>
               <TabsTrigger value="editor" className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
-                Story Editor
+                Chapter Editor
               </TabsTrigger>
-              {/* Only show Branch Visualizer for admins */}
               {isAdmin && (
                 <TabsTrigger value="branches" className="flex items-center gap-2">
                   <GitBranch className="w-4 h-4" />
-                  Branch Visualizer
+                  Visualizer
                 </TabsTrigger>
               )}
             </TabsList>
             
             {/* Role Mode Indicator */}
-            <Badge 
-              variant="outline" 
-              className={`flex items-center gap-1.5 px-3 py-1 ${
-                isAdmin 
-                  ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-300' 
-                  : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950 dark:text-blue-300'
-              }`}
-            >
-              {isAdmin ? (
-                <>
-                  <Shield className="w-3.5 h-3.5" />
-                  Review Mode
-                </>
-              ) : (
-                <>
-                  <Pencil className="w-3.5 h-3.5" />
-                  Writing Mode
-                </>
+            <div className="flex items-center gap-3">
+              {/* Current Branch Indicator */}
+              {!isOnMainBranch && (
+                <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1">
+                  <GitBranch className="w-3.5 h-3.5" />
+                  {branches.find(b => b.id === activeBranch)?.name || 'Branch'}
+                </Badge>
               )}
-            </Badge>
+              
+              <Badge 
+                variant="outline" 
+                className={`flex items-center gap-1.5 px-3 py-1 ${
+                  isAdmin 
+                    ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-300' 
+                    : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950 dark:text-blue-300'
+                }`}
+              >
+                {isAdmin ? (
+                  <>
+                    <Shield className="w-3.5 h-3.5" />
+                    Review Mode
+                  </>
+                ) : (
+                  <>
+                    <Pencil className="w-3.5 h-3.5" />
+                    Writing Mode
+                  </>
+                )}
+              </Badge>
+            </div>
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
+          {/* Main Story Preview Tab */}
+          <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
+            <MainStoryPreview 
+              chapters={mainBranchChapters || (isOnMainBranch ? chapters : [])}
+            />
+          </TabsContent>
+
+          {/* Chapter Editor Tab */}
           <TabsContent value="editor" className="h-full min-h-0 m-0 overflow-hidden">
             <StoryEditor 
               branches={branches}
@@ -130,6 +152,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onSubmitChapterForReview={onSubmitChapterForReview}
               onReviewChapter={onReviewChapter}
               onCreateBranch={onCreateBranch}
+              onForkFromChapter={onForkFromChapter}
               onSwitchBranch={onSwitchBranch}
               onSwitchChapter={onSwitchChapter}
               onRestoreSavePoint={onRestoreSavePoint}
@@ -142,6 +165,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
             />
           </TabsContent>
           
+          {/* Branch Visualizer Tab (Admin Only) */}
           {isAdmin && (
             <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
               <BranchVisualizer 
