@@ -160,6 +160,87 @@ export type Database = {
           },
         ]
       }
+      draft_collaborators: {
+        Row: {
+          approved_at: string | null
+          branch_id: string
+          id: string
+          invited_by: string | null
+          requested_at: string
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          branch_id: string
+          id?: string
+          invited_by?: string | null
+          requested_at?: string
+          role?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          branch_id?: string
+          id?: string
+          invited_by?: string | null
+          requested_at?: string
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      draft_suggestions: {
+        Row: {
+          author_name: string
+          branch_id: string
+          chapter_id: string
+          created_at: string
+          id: string
+          original_text: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          selection_end: number | null
+          selection_start: number | null
+          status: string
+          suggestion_text: string
+          user_id: string
+        }
+        Insert: {
+          author_name: string
+          branch_id: string
+          chapter_id: string
+          created_at?: string
+          id?: string
+          original_text?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          selection_end?: number | null
+          selection_start?: number | null
+          status?: string
+          suggestion_text: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          branch_id?: string
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          original_text?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          selection_end?: number | null
+          selection_start?: number | null
+          status?: string
+          suggestion_text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -470,6 +551,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_draft_collaborator: { Args: { branch_uuid: string }; Returns: boolean }
+      is_draft_owner: { Args: { branch_uuid: string }; Returns: boolean }
       is_studio_member: { Args: { studio_uuid: string }; Returns: boolean }
       is_studio_owner: { Args: { studio_uuid: string }; Returns: boolean }
     }
