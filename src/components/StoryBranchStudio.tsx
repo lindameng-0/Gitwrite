@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitBranch, FileText, Shield, Pencil, BookOpen } from 'lucide-react';
+import { GitBranch, FileText, Shield, Pencil, BookOpen, GitMerge } from 'lucide-react';
 import StoryEditor from './StoryEditor';
 import BranchVisualizer, { BranchVisualizerRef } from './BranchVisualizer';
 import MainStoryPreview from './MainStoryPreview';
 import ReviewModePanel from './ReviewModePanel';
+import AdminMergeQueue from './AdminMergeQueue';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryBranchStudioProps {
@@ -32,6 +33,7 @@ interface StoryBranchStudioProps {
   onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
   isAdmin?: boolean;
   currentUserName?: string;
+  storyId?: string;
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
@@ -57,9 +59,10 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onMoveChapter,
   onSaveBranchPosition,
   isAdmin = true,
-  currentUserName
+  currentUserName,
+  storyId
 }) => {
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'review' : 'editor');
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'queue' : 'editor');
   const branchVisualizerRef = React.useRef<BranchVisualizerRef>(null);
 
   const mainBranch = branches.find(b => b.is_main);
@@ -80,6 +83,10 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
           <div className="bg-background border-b border-border px-6 py-4 shadow-sm">
             <div className="flex items-center justify-between">
               <TabsList className="bg-muted/50">
+                <TabsTrigger value="queue" className="flex items-center gap-2">
+                  <GitMerge className="w-4 h-4" />
+                  Merge Queue
+                </TabsTrigger>
                 <TabsTrigger value="review" className="flex items-center gap-2">
                   <Shield className="w-4 h-4" />
                   Review & Publish
@@ -105,6 +112,17 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
           </div>
 
           <div className="flex-1 min-h-0 overflow-hidden">
+            <TabsContent value="queue" className="h-full min-h-0 m-0 overflow-hidden">
+              {storyId && (
+                <AdminMergeQueue 
+                  storyId={storyId}
+                  onLoadChaptersFromBranch={onLoadTargetChapters}
+                  onMergeChapter={onMergeChapter}
+                  mainBranchId={mainBranch?.id}
+                />
+              )}
+            </TabsContent>
+
             <TabsContent value="review" className="h-full min-h-0 m-0 overflow-hidden">
               <ReviewModePanel 
                 branches={branches}

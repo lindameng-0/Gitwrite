@@ -34,6 +34,7 @@ interface StoryEditorProps {
   onMoveChapter?: (chapterId: string, targetBranchId: string) => Promise<boolean>;
   isAdmin?: boolean;
   currentUserName?: string;
+  storyId?: string;
 }
 
 const PANEL_LAYOUT_KEY = 'story-editor-panel-layout';
