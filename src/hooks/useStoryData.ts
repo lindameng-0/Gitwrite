@@ -88,6 +88,7 @@ export interface StoryBranchWithMeta extends StoryBranch {
 export interface ChapterWithReviews extends Chapter {
   reviews: ChapterReview[];
   canMerge: boolean;
+  isInherited?: boolean; // True if chapter is after fork point (read-only in drafts)
 }
 
 export const useStoryData = (studioId?: string | null, initialBranchId?: string | null, initialChapterId?: string | null) => {
@@ -210,6 +211,11 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     if (!activeBranch) return;
 
     try {
+      // Get current branch info to check for fork point
+      const currentBranch = branches.find(b => b.id === activeBranch);
+      const forkPointOrder = currentBranch?.fork_point_order;
+      const isNonMainBranch = currentBranch && !currentBranch.is_main;
+
       const { data: chaptersData, error: chaptersError } = await supabase
         .from('chapters')
         .select(`
@@ -224,7 +230,11 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       const chaptersWithReviews: ChapterWithReviews[] = chaptersData.map(chapter => ({
         ...chapter,
         reviews: (chapter.chapter_reviews || []) as ChapterReview[],
-        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every((review: any) => review.status === 'approved')
+        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every((review: any) => review.status === 'approved'),
+        // Mark chapters after fork point as inherited (read-only) for non-main branches
+        isInherited: isNonMainBranch && forkPointOrder !== null && forkPointOrder !== undefined 
+          ? chapter.chapter_order > forkPointOrder 
+          : false
       }));
 
       setChapters(chaptersWithReviews);
@@ -509,7 +519,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
 
       const parentBranch = branches.find(b => b.id === activeBranch);
       
-      // Create new branch with fork point information
+      // Create new draft with fork point information
       const { data: newBranchData, error: branchError } = await supabase
         .from('story_branches')
         .insert({
@@ -530,12 +540,12 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
 
       if (branchError) throw branchError;
 
-      // Copy all chapters up to and including the fork point to the new branch
-      const chaptersToCopy = chapters
-        .filter(c => c.chapter_order <= forkChapter.chapter_order)
+      // Copy ALL chapters from the parent branch to the new draft
+      // Chapters at or before fork point are editable, after are inherited (read-only)
+      const allChapters = chapters
         .sort((a, b) => a.chapter_order - b.chapter_order);
 
-      for (const chapter of chaptersToCopy) {
+      for (const chapter of allChapters) {
         const { error: copyError } = await supabase
           .from('chapters')
           .insert({
@@ -545,6 +555,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
             content: chapter.content,
             chapter_order: chapter.chapter_order,
             author_name: chapter.author_name,
+            // Chapters after fork point start as 'draft' but will be treated as inherited
             status: 'draft'
           });
 
@@ -553,7 +564,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
         }
       }
 
-      // Update branch count on the fork chapter
+      // Update draft count on the fork chapter
       await supabase
         .from('chapters')
         .update({ branch_count: (forkChapter.branch_count || 0) + 1 })
@@ -575,7 +586,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       
       return newBranchData.id;
     } catch (error) {
-      console.error('Error forking from chapter:', error);
+      console.error('Error creating draft from chapter:', error);
       throw error;
     }
   };

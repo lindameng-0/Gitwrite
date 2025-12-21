@@ -2,28 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Save, MessageSquare } from 'lucide-react';
+import { FileText, Save, MessageSquare, Lock } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import RichTextEditor from './RichTextEditor';
-import type { ChapterWithReviews } from '@/hooks/useStoryData';
+import type { ChapterWithReviews, StoryBranchWithMeta } from '@/hooks/useStoryData';
 
 interface StoryEditorContentProps {
   chapters: ChapterWithReviews[];
   activeChapter: string;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  activeBranch?: StoryBranchWithMeta;
 }
 
 interface ChapterContentProps {
   chapter: ChapterWithReviews;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
+  isReadOnly?: boolean;
 }
 
 const ChapterContent: React.FC<ChapterContentProps> = ({ 
   chapter, 
   onUpdateChapterContent, 
-  onSubmitChapterForReview 
+  onSubmitChapterForReview,
+  isReadOnly = false
 }) => {
   const [content, setContent] = useState(chapter.content);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,6 +78,16 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      {/* Read-only Banner for inherited chapters */}
+      {isReadOnly && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+          <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <span className="text-sm text-amber-800 dark:text-amber-200">
+            This chapter is from the published version. To edit, create a new draft from an earlier chapter.
+          </span>
+        </div>
+      )}
+      
       {/* Chapter Header */}
       <div className="bg-background border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div>
@@ -88,20 +101,27 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
               {chapter.status}
             </Badge>
             <span className="text-sm text-muted-foreground">by {chapter.author_name}</span>
+            {isReadOnly && (
+              <Badge variant="outline" className="text-xs text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                Read-only
+              </Badge>
+            )}
           </div>
         </div>
-        <div className="space-x-2">
-          <Button size="sm" onClick={handleSave} disabled={isSaving}>
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save'}
-          </Button>
-          {chapter.status === 'draft' && (
-            <Button size="sm" variant="secondary" onClick={handleSubmitForReview}>
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Submit for Review
+        {!isReadOnly && (
+          <div className="space-x-2">
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
-          )}
-        </div>
+            {chapter.status === 'draft' && (
+              <Button size="sm" variant="secondary" onClick={handleSubmitForReview}>
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Submit for Review
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Rich Text Editor */}
@@ -110,6 +130,7 @@ const ChapterContent: React.FC<ChapterContentProps> = ({
           content={content}
           onChange={handleContentChange}
           placeholder="Begin writing your chapter..."
+          editable={!isReadOnly}
         />
       </div>
     </div>
@@ -120,7 +141,8 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
   chapters, 
   activeChapter, 
   onUpdateChapterContent, 
-  onSubmitChapterForReview 
+  onSubmitChapterForReview,
+  activeBranch
 }) => {
   const chapter = chapters.find(c => c.id === activeChapter);
 
@@ -144,6 +166,7 @@ const StoryEditorContent: React.FC<StoryEditorContentProps> = ({
       chapter={chapter} 
       onUpdateChapterContent={onUpdateChapterContent}
       onSubmitChapterForReview={onSubmitChapterForReview}
+      isReadOnly={chapter.isInherited}
     />
   );
 };

@@ -11,12 +11,14 @@ interface RichTextEditorProps {
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
+  editable?: boolean;
 }
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
   content,
   onChange,
-  placeholder = 'Begin writing your story...'
+  placeholder = 'Begin writing your story...',
+  editable = true
 }) => {
   const editor = useEditor({
     extensions: [
@@ -45,12 +47,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       }),
     ],
     content,
+    editable,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
     editorProps: {
       attributes: {
-        class: 'tiptap min-h-[600px] px-12 py-8 focus:outline-none',
+        class: `tiptap min-h-[600px] px-12 py-8 focus:outline-none ${!editable ? 'cursor-default' : ''}`,
       },
     },
   });
