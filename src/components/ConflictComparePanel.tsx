@@ -158,7 +158,10 @@ const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
       </div>
 
       {versions.length > 0 && (
-        <div className="flex justify-end pt-4 border-t border-border">
+        <div className="flex justify-between items-center pt-4 border-t border-border">
+          <p className="text-xs text-muted-foreground">
+            Select a winner or combine multiple versions using the Combine button above
+          </p>
           <Button
             onClick={handleSelectWinner}
             disabled={!selectedVersion || isProcessing}
@@ -169,10 +172,6 @@ const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
           </Button>
         </div>
       )}
-
-      <p className="text-xs text-muted-foreground text-center">
-        The winning version will be approved for publishing. Other versions will be marked as superseded.
-      </p>
     </div>
   );
 };

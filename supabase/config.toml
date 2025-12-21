@@ -1,1 +1,4 @@
 project_id = "mcllxqteemgwenykvxih"
+
+[functions.fuse-chapters]
+verify_jwt = false
