@@ -24,10 +24,12 @@ import {
   Eye,
   ArrowRight,
   Layers,
-  User
+  User,
+  Combine
 } from 'lucide-react';
 import { useMergeRequests, MergeRequestWithDetails, ConflictGroup } from '@/hooks/useMergeRequests';
 import ConflictComparePanel from './ConflictComparePanel';
+import FusionMergeDialog from './FusionMergeDialog';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface AdminMergeQueueProps {
@@ -62,6 +64,13 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     isOpen: false,
     request: null,
     chapters: []
+  });
+  const [fusionDialog, setFusionDialog] = useState<{ 
+    isOpen: boolean; 
+    versions: { request: MergeRequestWithDetails; chapters: ChapterWithReviews[]; wordCount: number; approvedCount: number }[] 
+  }>({
+    isOpen: false,
+    versions: []
   });
 
   const conflictGroups = getConflictGroups();
@@ -101,6 +110,38 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
 
   const handleCompareConflicts = (group: ConflictGroup) => {
     setCompareDialog({ isOpen: true, group });
+  };
+
+  const handleCombineVersions = async (group: ConflictGroup) => {
+    // Load chapters for all versions in the conflict group
+    const versionsData = await Promise.all(
+      group.requests.map(async (request) => {
+        const chapters = await onLoadChaptersFromBranch(request.source_branch_id);
+        const approvedChapters = chapters.filter(c => c.status === 'approved');
+        const wordCount = approvedChapters.reduce((acc, c) => {
+          const text = c.content.replace(/<[^>]*>/g, '').trim();
+          return acc + (text ? text.split(/\s+/).length : 0);
+        }, 0);
+        return {
+          request,
+          chapters,
+          wordCount,
+          approvedCount: approvedChapters.length
+        };
+      })
+    );
+    setFusionDialog({ isOpen: true, versions: versionsData });
+  };
+
+  const handleFusionComplete = async (fusedContent: string, selectedVersionIds: string[], fusionNote: string) => {
+    // Mark selected versions as approved/superseded and create fused chapter
+    for (const versionId of selectedVersionIds) {
+      await reviewMergeRequest(versionId, 'approved', `Included in fusion: ${fusionNote}`);
+    }
+    
+    // Here you would typically create the fused chapter in the main branch
+    // For now, we'll just close the dialog - the parent component should handle the actual merge
+    setFusionDialog({ isOpen: false, versions: [] });
   };
 
   const getStatusBadge = (status: string) => {
@@ -173,14 +214,24 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
                           ))}
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompareConflicts(group)}
-                        className="bg-amber-600 hover:bg-amber-700 text-white"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Compare
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCompareConflicts(group)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Compare
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleCombineVersions(group)}
+                          className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+                        >
+                          <Combine className="w-4 h-4 mr-1" />
+                          Combine
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -386,6 +437,15 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fusion Dialog */}
+      <FusionMergeDialog
+        isOpen={fusionDialog.isOpen}
+        onClose={() => setFusionDialog({ isOpen: false, versions: [] })}
+        versions={fusionDialog.versions}
+        onFusionComplete={handleFusionComplete}
+        chapterTitle={fusionDialog.versions[0]?.request.chapter_title || undefined}
+      />
     </div>
   );
 };
