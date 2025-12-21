@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GitBranch, FileText, Shield, Pencil, BookOpen, History } from 'lucide-react';
+import { GitBranch, FileText, Shield, Pencil, BookOpen } from 'lucide-react';
 import StoryEditor from './StoryEditor';
 import BranchVisualizer, { BranchVisualizerRef } from './BranchVisualizer';
 import MainStoryPreview from './MainStoryPreview';
+import ReviewModePanel from './ReviewModePanel';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryBranchStudioProps {
   branches: StoryBranchWithMeta[];
   chapters: ChapterWithReviews[];
-  mainBranchChapters: ChapterWithReviews[]; // Always main branch chapters for sidebar
+  mainBranchChapters: ChapterWithReviews[];
   savePoints: SavePoint[];
   activeBranch: string;
   activeChapter: string;
@@ -58,14 +59,12 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   isAdmin = true,
   currentUserName
 }) => {
-  const [activeTab, setActiveTab] = useState('editor');
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'review' : 'editor');
   const branchVisualizerRef = React.useRef<BranchVisualizerRef>(null);
 
-  // Get main branch
   const mainBranch = branches.find(b => b.is_main);
   const isOnMainBranch = mainBranch?.id === activeBranch;
 
-  // Save positions when switching away from branches tab
   const handleTabChange = (newTab: string) => {
     if (activeTab === 'branches' && branchVisualizerRef.current) {
       branchVisualizerRef.current.savePositions();
@@ -73,6 +72,73 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
     setActiveTab(newTab);
   };
 
+  // Review Mode: Dedicated simple interface
+  if (isAdmin) {
+    return (
+      <div className="h-full min-h-0 bg-gradient-to-br from-background to-muted/20">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full min-h-0 flex flex-col">
+          <div className="bg-background border-b border-border px-6 py-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <TabsList className="bg-muted/50">
+                <TabsTrigger value="review" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Review & Publish
+                </TabsTrigger>
+                <TabsTrigger value="main-story" className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Main Story
+                </TabsTrigger>
+                <TabsTrigger value="branches" className="flex items-center gap-2">
+                  <GitBranch className="w-4 h-4" />
+                  Visualizer
+                </TabsTrigger>
+              </TabsList>
+              
+              <Badge 
+                variant="outline" 
+                className="flex items-center gap-1.5 px-3 py-1 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-300"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                Review Mode
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <TabsContent value="review" className="h-full min-h-0 m-0 overflow-hidden">
+              <ReviewModePanel 
+                branches={branches}
+                chapters={chapters}
+                activeBranch={activeBranch}
+                onReviewChapter={onReviewChapter}
+                onMergeChapter={onMergeChapter}
+                onMergeStoryVersion={onMergeStoryVersion}
+                onLoadTargetChapters={onLoadTargetChapters}
+                onSwitchBranch={onSwitchBranch}
+              />
+            </TabsContent>
+
+            <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
+              <MainStoryPreview chapters={mainBranchChapters} />
+            </TabsContent>
+
+            <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
+              <BranchVisualizer 
+                ref={branchVisualizerRef}
+                branches={branches}
+                chapters={chapters}
+                activeBranch={activeBranch}
+                onBranchSelect={onSwitchBranch}
+                onSaveBranchPosition={onSaveBranchPosition}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
+    );
+  }
+
+  // Writing Mode: Full editor interface
   return (
     <div className="h-full min-h-0 bg-gradient-to-br from-background to-muted/20">
       <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full min-h-0 flex flex-col">
@@ -87,17 +153,9 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
                 <FileText className="w-4 h-4" />
                 Chapter Editor
               </TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger value="branches" className="flex items-center gap-2">
-                  <GitBranch className="w-4 h-4" />
-                  Visualizer
-                </TabsTrigger>
-              )}
             </TabsList>
             
-            {/* Role Mode Indicator */}
             <div className="flex items-center gap-3">
-              {/* Current Branch Indicator */}
               {!isOnMainBranch && (
                 <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1">
                   <GitBranch className="w-3.5 h-3.5" />
@@ -107,37 +165,20 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               
               <Badge 
                 variant="outline" 
-                className={`flex items-center gap-1.5 px-3 py-1 ${
-                  isAdmin 
-                    ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-300' 
-                    : 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950 dark:text-blue-300'
-                }`}
+                className="flex items-center gap-1.5 px-3 py-1 border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950 dark:text-blue-300"
               >
-                {isAdmin ? (
-                  <>
-                    <Shield className="w-3.5 h-3.5" />
-                    Review Mode
-                  </>
-                ) : (
-                  <>
-                    <Pencil className="w-3.5 h-3.5" />
-                    Writing Mode
-                  </>
-                )}
+                <Pencil className="w-3.5 h-3.5" />
+                Writing Mode
               </Badge>
             </div>
           </div>
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          {/* Main Story Preview Tab */}
           <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
-            <MainStoryPreview 
-              chapters={mainBranchChapters}
-            />
+            <MainStoryPreview chapters={mainBranchChapters} />
           </TabsContent>
 
-          {/* Chapter Editor Tab */}
           <TabsContent value="editor" className="h-full min-h-0 m-0 overflow-hidden">
             <StoryEditor 
               branches={branches}
@@ -160,24 +201,10 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onMergeChapter={onMergeChapter}
               onMergeStoryVersion={onMergeStoryVersion}
               onMoveChapter={onMoveChapter}
-              isAdmin={isAdmin}
+              isAdmin={false}
               currentUserName={currentUserName}
             />
           </TabsContent>
-          
-          {/* Branch Visualizer Tab (Admin Only) */}
-          {isAdmin && (
-            <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
-              <BranchVisualizer 
-                ref={branchVisualizerRef}
-                branches={branches}
-                chapters={chapters}
-                activeBranch={activeBranch}
-                onBranchSelect={onSwitchBranch}
-                onSaveBranchPosition={onSaveBranchPosition}
-              />
-            </TabsContent>
-          )}
         </div>
       </Tabs>
     </div>
