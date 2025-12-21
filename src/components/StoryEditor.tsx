@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { Layers, Clock, BarChart3, Lock, ArrowRight } from 'lucide-react';
+import { Layers, Clock, BarChart3, Lock, ArrowRight, Send } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import ChapterFirstSidebar from './ChapterFirstSidebar';
@@ -9,6 +9,7 @@ import StoryEditorContent from './StoryEditorContent';
 import SavePointsPanel from './SavePointsPanel';
 import MergeInterface from './MergeInterface';
 import WriterProgressPanel from './WriterProgressPanel';
+import MergeRequestButton from './MergeRequestButton';
 import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
@@ -60,7 +61,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onMergeChapter,
   onMergeStoryVersion,
   isAdmin = true,
-  currentUserName
+  currentUserName,
+  storyId
 }) => {
   const { toast } = useToast();
 
@@ -71,6 +73,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   const forkPointChapter = currentBranch?.fork_point_order 
     ? chapters.find(c => c.chapter_order === currentBranch.fork_point_order)
     : null;
+
+  // Check if current branch has approved chapters (ready for merge request)
+  const hasApprovedChapters = chapters.some(c => c.status === 'approved');
 
   const getDefaultLayout = (): number[] => {
     const saved = localStorage.getItem(PANEL_LAYOUT_KEY);
@@ -132,16 +137,27 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                   </span>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                onClick={() => mainBranch && onSwitchBranch(mainBranch.id)}
-              >
-                <Lock className="w-3 h-3 mr-1" />
-                View Published
-                <ArrowRight className="w-3 h-3 ml-1" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* Submit for Official Review button - only for writers with approved chapters */}
+                {!isAdmin && storyId && hasApprovedChapters && (
+                  <MergeRequestButton
+                    branch={currentBranch}
+                    mainBranch={mainBranch}
+                    storyId={storyId}
+                    hasApprovedChapters={hasApprovedChapters}
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                  onClick={() => mainBranch && onSwitchBranch(mainBranch.id)}
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  View Published
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
             </div>
           )}
           
@@ -206,6 +222,10 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                     <BarChart3 className="w-4 h-4" />
                     My Progress
                   </TabsTrigger>
+                  <TabsTrigger value="submit" className="flex items-center gap-2">
+                    <Send className="w-4 h-4" />
+                    Submit
+                  </TabsTrigger>
                   <TabsTrigger value="savepoints" className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
                     Save Points
@@ -219,6 +239,34 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                     chapters={chapters}
                     currentUserName={currentUserName}
                   />
+                </TabsContent>
+
+                <TabsContent value="submit" className="h-full m-0 p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-1">Submit for Publishing</h3>
+                      <p className="text-sm text-muted-foreground">
+                        When you have approved chapters, submit them for admin review to be published to the main story.
+                      </p>
+                    </div>
+                    
+                    {!isOnMainBranch && currentBranch && storyId ? (
+                      <MergeRequestButton
+                        branch={currentBranch}
+                        mainBranch={mainBranch}
+                        storyId={storyId}
+                        hasApprovedChapters={hasApprovedChapters}
+                      />
+                    ) : isOnMainBranch ? (
+                      <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                        You're viewing the published version. Create or switch to a draft to submit changes.
+                      </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                        No draft selected.
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="savepoints" className="h-full m-0 p-4">
