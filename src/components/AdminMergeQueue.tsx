@@ -26,11 +26,15 @@ import {
   Layers,
   User,
   Combine,
-  Archive
+  Archive,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { useMergeRequests, MergeRequestWithDetails, ConflictGroup } from '@/hooks/useMergeRequests';
 import ConflictComparePanel from './ConflictComparePanel';
 import FusionMergeDialog from './FusionMergeDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface AdminMergeQueueProps {
@@ -75,11 +79,52 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     isOpen: false,
     versions: []
   });
+  const [summaries, setSummaries] = useState<Record<string, { summary: string; loading: boolean; error?: string }>>({});
 
   const conflictGroups = getConflictGroups();
   const pendingRequests = mergeRequests.filter(r => r.status === 'pending');
   const underReviewRequests = mergeRequests.filter(r => r.status === 'under_review');
   const resolvedRequests = mergeRequests.filter(r => ['approved', 'rejected', 'superseded'].includes(r.status));
+
+  const generateSummary = async (request: MergeRequestWithDetails) => {
+    if (summaries[request.id]?.summary || summaries[request.id]?.loading) return;
+
+    setSummaries(prev => ({ ...prev, [request.id]: { summary: '', loading: true } }));
+
+    try {
+      const chapters = await onLoadChaptersFromBranch(request.source_branch_id);
+      
+      const { data, error } = await supabase.functions.invoke('summarize-merge-request', {
+        body: {
+          branchName: request.source_branch?.name || 'Unknown Branch',
+          authorName: request.author_name,
+          chapters: chapters.map(ch => ({
+            title: ch.title,
+            content: ch.content,
+            status: ch.status
+          }))
+        }
+      });
+
+      if (error) throw error;
+
+      setSummaries(prev => ({ 
+        ...prev, 
+        [request.id]: { summary: data.summary, loading: false } 
+      }));
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setSummaries(prev => ({ 
+        ...prev, 
+        [request.id]: { summary: '', loading: false, error: 'Failed to generate summary' } 
+      }));
+      toast({
+        title: "Summary Error",
+        description: "Could not generate AI summary for this request.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleApprove = async (request: MergeRequestWithDetails) => {
     setIsProcessing(true);
@@ -299,12 +344,38 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={(e) => { e.stopPropagation(); generateSummary(request); }}
+                          disabled={summaries[request.id]?.loading}
+                          className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/30"
+                        >
+                          {summaries[request.id]?.loading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={(e) => { e.stopPropagation(); handlePreview(request); }}
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
+
+                    {/* AI Summary Section */}
+                    {summaries[request.id]?.summary && (
+                      <div className="mt-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
+                        <div className="flex items-center gap-2 text-xs font-medium text-violet-700 dark:text-violet-300 mb-1">
+                          <Sparkles className="w-3 h-3" />
+                          AI Summary
+                        </div>
+                        <p className="text-sm text-violet-900 dark:text-violet-100">
+                          {summaries[request.id].summary}
+                        </p>
+                      </div>
+                    )}
 
                     {selectedRequest?.id === request.id && (
                       <div className="mt-4 pt-4 border-t border-border space-y-3">

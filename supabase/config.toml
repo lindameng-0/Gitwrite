@@ -2,3 +2,6 @@ project_id = "mcllxqteemgwenykvxih"
 
 [functions.fuse-chapters]
 verify_jwt = false
+
+[functions.summarize-merge-request]
+verify_jwt = false
