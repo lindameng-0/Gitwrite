@@ -14,6 +14,8 @@ interface Story {
   updated_at: string;
 }
 
+export type BranchStatus = 'draft' | 'proposed' | 'published' | 'alternate' | 'archived';
+
 interface StoryBranch {
   id: string;
   story_id: string;
@@ -31,6 +33,7 @@ interface StoryBranch {
   updated_at: string;
   position_x: number | null;
   position_y: number | null;
+  status: BranchStatus;
 }
 
 interface Chapter {
@@ -194,17 +197,18 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
         // Auto-create main branch for new story (protected by default)
         const { data: mainBranch, error: branchError } = await supabase
           .from('story_branches')
-          .insert({
-            story_id: currentStory.id,
-            studio_id: studioId,
-            name: 'Main Story',
-            content: '',
-            author_name: profile?.username || 'System',
-            parent_branch_id: null,
-            is_main: true,
-            is_active: true,
-            is_protected: true
-          })
+        .insert({
+          story_id: currentStory.id,
+          studio_id: studioId,
+          name: 'Main Story',
+          content: '',
+          author_name: profile?.username || 'System',
+          parent_branch_id: null,
+          is_main: true,
+          is_active: true,
+          is_protected: true,
+          status: 'published'
+        })
           .select()
           .single();
           
@@ -224,6 +228,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       // Convert to our format and find active branch
       const branchesWithMeta: StoryBranchWithMeta[] = (branchData || []).map(branch => ({
         ...branch,
+        status: branch.status as BranchStatus,
         isActive: branch.is_active
       }));
       
@@ -520,7 +525,8 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
           parent_branch_id: parentId,
           is_main: isFirstBranch,
           is_active: isFirstBranch,
-          is_protected: isFirstBranch // Only first/main branch is protected
+          is_protected: isFirstBranch, // Only first/main branch is protected
+          status: isFirstBranch ? 'published' : 'draft'
         })
         .select()
         .single();
@@ -529,6 +535,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
 
       const newBranch: StoryBranchWithMeta = {
         ...data,
+        status: data.status as BranchStatus,
         isActive: data.is_active
       };
 
@@ -568,7 +575,8 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
           is_active: false,
           is_protected: false,
           fork_point_chapter_id: forkChapterId,
-          fork_point_order: forkChapter.chapter_order
+          fork_point_order: forkChapter.chapter_order,
+          status: 'draft'
         })
         .select()
         .single();
@@ -607,6 +615,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
 
       const newBranch: StoryBranchWithMeta = {
         ...newBranchData,
+        status: newBranchData.status as BranchStatus,
         isActive: false
       };
 
@@ -1013,6 +1022,174 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     }
   };
 
+  // Delete a branch (only drafts owned by user, not main/protected)
+  const deleteBranch = async (branchId: string): Promise<boolean> => {
+    try {
+      const branch = branches.find(b => b.id === branchId);
+      if (!branch) return false;
+      
+      // Cannot delete main or protected branches
+      if (branch.is_main || branch.is_protected) {
+        console.error('Cannot delete main or protected branches');
+        return false;
+      }
+      
+      // Only the author can delete their own drafts
+      if (branch.author_name !== profile?.username) {
+        console.error('Only the author can delete their draft');
+        return false;
+      }
+
+      // Delete all chapters in this branch first
+      const { error: chaptersError } = await supabase
+        .from('chapters')
+        .delete()
+        .eq('branch_id', branchId);
+
+      if (chaptersError) throw chaptersError;
+
+      // Delete the branch
+      const { error: branchError } = await supabase
+        .from('story_branches')
+        .delete()
+        .eq('id', branchId);
+
+      if (branchError) throw branchError;
+
+      // Update local state
+      setBranches(prev => prev.filter(b => b.id !== branchId));
+      
+      // Switch to main branch if we deleted the active branch
+      if (activeBranch === branchId) {
+        const mainBranch = branches.find(b => b.is_main);
+        if (mainBranch) {
+          setActiveBranch(mainBranch.id);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting branch:', error);
+      return false;
+    }
+  };
+
+  // Fork from any branch (not just active) - useful for forking from alternates
+  const forkFromBranch = async (name: string, sourceBranchId: string): Promise<string | null> => {
+    if (!story || !studioId) return null;
+    
+    try {
+      const sourceBranch = branches.find(b => b.id === sourceBranchId);
+      if (!sourceBranch) {
+        console.error('Source branch not found');
+        return null;
+      }
+
+      // Load chapters from source branch
+      const sourceChapters = await loadChaptersFromBranch(sourceBranchId);
+      const lastChapter = sourceChapters.length > 0 
+        ? sourceChapters.reduce((max, c) => c.chapter_order > max.chapter_order ? c : max, sourceChapters[0])
+        : null;
+      
+      // Create new draft
+      const { data: newBranchData, error: branchError } = await supabase
+        .from('story_branches')
+        .insert({
+          story_id: story.id,
+          studio_id: studioId,
+          name,
+          content: '',
+          author_name: profile?.username || 'Anonymous',
+          parent_branch_id: sourceBranchId,
+          is_main: false,
+          is_active: false,
+          is_protected: false,
+          fork_point_chapter_id: lastChapter?.id || null,
+          fork_point_order: lastChapter?.chapter_order || null,
+          status: 'draft'
+        })
+        .select()
+        .single();
+
+      if (branchError) throw branchError;
+
+      // Copy all chapters from source branch
+      for (const chapter of sourceChapters) {
+        await supabase
+          .from('chapters')
+          .insert({
+            story_id: story.id,
+            branch_id: newBranchData.id,
+            title: chapter.title,
+            content: chapter.content,
+            chapter_order: chapter.chapter_order,
+            author_name: chapter.author_name,
+            status: 'draft'
+          });
+      }
+
+      const newBranch: StoryBranchWithMeta = {
+        ...newBranchData,
+        status: newBranchData.status as BranchStatus,
+        isActive: false
+      };
+
+      setBranches(prev => [...prev, newBranch]);
+      return newBranchData.id;
+    } catch (error) {
+      console.error('Error forking from branch:', error);
+      return null;
+    }
+  };
+
+  // Continue writing on an alternate branch (original author only)
+  const continueBranch = async (branchId: string): Promise<string | null> => {
+    const branch = branches.find(b => b.id === branchId);
+    if (!branch) return null;
+    
+    // Only the original author can continue an alternate
+    if (branch.author_name !== profile?.username) {
+      console.error('Only the original author can continue this branch');
+      return null;
+    }
+    
+    // Only alternates can be continued
+    if (branch.status !== 'alternate') {
+      console.error('Only alternate branches can be continued');
+      return null;
+    }
+
+    // Create a new draft that continues from this alternate
+    const newName = `${branch.name} (continued)`;
+    return forkFromBranch(newName, branchId);
+  };
+
+  // Update branch status (for admin actions)
+  const setBranchStatus = async (branchId: string, status: BranchStatus): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('story_branches')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', branchId);
+
+      if (error) throw error;
+
+      setBranches(prev => prev.map(b => 
+        b.id === branchId ? { ...b, status } : b
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error updating branch status:', error);
+      return false;
+    }
+  };
+
+  // Set branch as proposed (for writers submitting for review)
+  const proposeBranch = async (branchId: string): Promise<boolean> => {
+    return setBranchStatus(branchId, 'proposed');
+  };
+
   return {
     story,
     branches,
@@ -1031,6 +1208,11 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     updateBranchContent,
     createNewBranch,
     forkFromChapter,
+    forkFromBranch,
+    continueBranch,
+    deleteBranch,
+    setBranchStatus,
+    proposeBranch,
     switchToBranch,
     mergeBranch,
     mergeChapter,

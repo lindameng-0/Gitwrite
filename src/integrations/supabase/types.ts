@@ -432,6 +432,7 @@ export type Database = {
           parent_branch_id: string | null
           position_x: number | null
           position_y: number | null
+          status: string
           story_id: string
           studio_id: string | null
           updated_at: string
@@ -450,6 +451,7 @@ export type Database = {
           parent_branch_id?: string | null
           position_x?: number | null
           position_y?: number | null
+          status?: string
           story_id: string
           studio_id?: string | null
           updated_at?: string
@@ -468,6 +470,7 @@ export type Database = {
           parent_branch_id?: string | null
           position_x?: number | null
           position_y?: number | null
+          status?: string
           story_id?: string
           studio_id?: string | null
           updated_at?: string

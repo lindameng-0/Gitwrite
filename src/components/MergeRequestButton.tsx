@@ -26,14 +26,16 @@ interface MergeRequestButtonProps {
   branch: StoryBranchWithMeta;
   mainBranch: StoryBranchWithMeta | undefined;
   storyId: string;
-  hasApprovedChapters: boolean;
+  hasContent: boolean; // Changed from hasApprovedChapters
+  onProposeBranch?: (branchId: string) => Promise<boolean>;
 }
 
 const MergeRequestButton: React.FC<MergeRequestButtonProps> = ({
   branch,
   mainBranch,
   storyId,
-  hasApprovedChapters
+  hasContent,
+  onProposeBranch
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +55,10 @@ const MergeRequestButton: React.FC<MergeRequestButtonProps> = ({
     setIsSubmitting(true);
     try {
       await submitMergeRequest(branch.id, mainBranch.id);
+      // Also update branch status to proposed
+      if (onProposeBranch) {
+        await onProposeBranch(branch.id);
+      }
       setIsDialogOpen(false);
     } finally {
       setIsSubmitting(false);
@@ -102,7 +108,7 @@ const MergeRequestButton: React.FC<MergeRequestButtonProps> = ({
   }
 
   // Not ready to submit
-  if (!hasApprovedChapters) {
+  if (!hasContent) {
     return (
       <Button
         variant="outline"
@@ -111,7 +117,7 @@ const MergeRequestButton: React.FC<MergeRequestButtonProps> = ({
         className="w-full opacity-50"
       >
         <GitMerge className="w-4 h-4 mr-2" />
-        No Approved Chapters
+        No Content to Propose
       </Button>
     );
   }
@@ -123,7 +129,7 @@ const MergeRequestButton: React.FC<MergeRequestButtonProps> = ({
         className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
       >
         <Send className="w-4 h-4 mr-2" />
-        Submit for Official Review
+        Propose Changes
       </Button>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
