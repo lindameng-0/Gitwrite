@@ -14,6 +14,7 @@ import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks
 interface StoryEditorProps {
   branches: StoryBranchWithMeta[];
   chapters: ChapterWithReviews[];
+  mainBranchChapters: ChapterWithReviews[]; // Always main branch chapters for sidebar
   savePoints: SavePoint[];
   activeBranch: string;
   activeChapter: string;
@@ -40,6 +41,7 @@ const PANEL_LAYOUT_KEY = 'story-editor-panel-layout';
 const StoryEditor: React.FC<StoryEditorProps> = ({
   branches,
   chapters,
+  mainBranchChapters,
   savePoints,
   activeBranch,
   activeChapter,
@@ -98,6 +100,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
           <ChapterFirstSidebar
             branches={branches}
             chapters={chapters}
+            mainBranchChapters={mainBranchChapters}
             activeBranch={activeBranch}
             activeChapter={activeChapter}
             onCreateChapter={onCreateChapter}

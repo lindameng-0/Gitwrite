@@ -46,6 +46,7 @@ const WriterStudio = () => {
     story,
     branches,
     chapters,
+    mainBranchChapters,
     savePoints,
     activeBranch,
     activeChapter,
@@ -159,6 +160,7 @@ const WriterStudio = () => {
         <StoryBranchStudio
           branches={branches}
           chapters={chapters}
+          mainBranchChapters={mainBranchChapters}
           savePoints={savePoints}
           activeBranch={activeBranch}
           activeChapter={activeChapter}

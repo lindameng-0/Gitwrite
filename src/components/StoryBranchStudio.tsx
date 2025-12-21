@@ -10,6 +10,7 @@ import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks
 interface StoryBranchStudioProps {
   branches: StoryBranchWithMeta[];
   chapters: ChapterWithReviews[];
+  mainBranchChapters: ChapterWithReviews[]; // Always main branch chapters for sidebar
   savePoints: SavePoint[];
   activeBranch: string;
   activeChapter: string;
@@ -30,13 +31,12 @@ interface StoryBranchStudioProps {
   onSaveBranchPosition?: (branchId: string, x: number, y: number) => Promise<boolean>;
   isAdmin?: boolean;
   currentUserName?: string;
-  // Main branch chapters for the preview
-  mainBranchChapters?: ChapterWithReviews[];
 }
 
 const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   branches,
   chapters,
+  mainBranchChapters,
   savePoints,
   activeBranch,
   activeChapter,
@@ -56,8 +56,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onMoveChapter,
   onSaveBranchPosition,
   isAdmin = true,
-  currentUserName,
-  mainBranchChapters
+  currentUserName
 }) => {
   const [activeTab, setActiveTab] = useState('editor');
   const branchVisualizerRef = React.useRef<BranchVisualizerRef>(null);
@@ -134,7 +133,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
           {/* Main Story Preview Tab */}
           <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
             <MainStoryPreview 
-              chapters={mainBranchChapters || (isOnMainBranch ? chapters : [])}
+              chapters={mainBranchChapters}
             />
           </TabsContent>
 
@@ -143,6 +142,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
             <StoryEditor 
               branches={branches}
               chapters={chapters}
+              mainBranchChapters={mainBranchChapters}
               savePoints={savePoints}
               activeBranch={activeBranch}
               activeChapter={activeChapter}
