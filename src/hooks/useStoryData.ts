@@ -24,6 +24,9 @@ interface StoryBranch {
   author_name: string;
   is_main: boolean;
   is_active: boolean;
+  is_protected: boolean;
+  fork_point_chapter_id: string | null;
+  fork_point_order: number | null;
   created_at: string;
   updated_at: string;
   position_x: number | null;
@@ -39,8 +42,21 @@ interface Chapter {
   content: string;
   status: string;
   author_name: string;
+  branch_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChapterVersion {
+  id: string;
+  chapter_id: string;
+  version_number: number;
+  content: string;
+  merged_from_branch_id: string | null;
+  merge_note: string | null;
+  author_name: string;
+  is_current: boolean;
+  created_at: string;
 }
 
 export interface SavePoint {
@@ -139,23 +155,25 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
         currentStory = newStory;
         setStory(newStory);
         
-        // Auto-create main branch for new story
+        // Auto-create main branch for new story (protected by default)
         const { data: mainBranch, error: branchError } = await supabase
           .from('story_branches')
           .insert({
             story_id: currentStory.id,
             studio_id: studioId,
-            name: 'Main Branch',
+            name: 'Main Story',
             content: '',
             author_name: profile?.username || 'System',
             parent_branch_id: null,
             is_main: true,
-            is_active: true
+            is_active: true,
+            is_protected: true
           })
           .select()
           .single();
           
         if (branchError) throw branchError;
+
       }
 
       // Load branches for the story (not just studio)
@@ -456,7 +474,8 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
           author_name: profile?.username || 'Anonymous',
           parent_branch_id: parentId,
           is_main: isFirstBranch,
-          is_active: isFirstBranch
+          is_active: isFirstBranch,
+          is_protected: isFirstBranch // Only first/main branch is protected
         })
         .select()
         .single();
@@ -473,6 +492,90 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       return data.id;
     } catch (error) {
       console.error('Error creating branch:', error);
+      throw error;
+    }
+  };
+
+  // Fork a story from a specific chapter (Git-style fork)
+  const forkFromChapter = async (name: string, forkChapterId: string) => {
+    if (!story || !studioId) return null;
+    
+    try {
+      const forkChapter = chapters.find(c => c.id === forkChapterId);
+      if (!forkChapter) {
+        console.error('Fork chapter not found');
+        return null;
+      }
+
+      const parentBranch = branches.find(b => b.id === activeBranch);
+      
+      // Create new branch with fork point information
+      const { data: newBranchData, error: branchError } = await supabase
+        .from('story_branches')
+        .insert({
+          story_id: story.id,
+          studio_id: studioId,
+          name,
+          content: '',
+          author_name: profile?.username || 'Anonymous',
+          parent_branch_id: activeBranch,
+          is_main: false,
+          is_active: false,
+          is_protected: false,
+          fork_point_chapter_id: forkChapterId,
+          fork_point_order: forkChapter.chapter_order
+        })
+        .select()
+        .single();
+
+      if (branchError) throw branchError;
+
+      // Copy all chapters up to and including the fork point to the new branch
+      const chaptersToCopy = chapters
+        .filter(c => c.chapter_order <= forkChapter.chapter_order)
+        .sort((a, b) => a.chapter_order - b.chapter_order);
+
+      for (const chapter of chaptersToCopy) {
+        const { error: copyError } = await supabase
+          .from('chapters')
+          .insert({
+            story_id: story.id,
+            branch_id: newBranchData.id,
+            title: chapter.title,
+            content: chapter.content,
+            chapter_order: chapter.chapter_order,
+            author_name: chapter.author_name,
+            status: 'draft'
+          });
+
+        if (copyError) {
+          console.error('Error copying chapter:', copyError);
+        }
+      }
+
+      // Update branch count on the fork chapter
+      await supabase
+        .from('chapters')
+        .update({ branch_count: (forkChapter.branch_count || 0) + 1 })
+        .eq('id', forkChapterId);
+
+      const newBranch: StoryBranchWithMeta = {
+        ...newBranchData,
+        isActive: false
+      };
+
+      setBranches(prev => [...prev, newBranch]);
+      
+      // Update local chapter state
+      setChapters(prev => prev.map(c => 
+        c.id === forkChapterId 
+          ? { ...c, branch_count: (c.branch_count || 0) + 1 }
+          : c
+      ));
+      
+      return newBranchData.id;
+    } catch (error) {
+      console.error('Error forking from chapter:', error);
       throw error;
     }
   };
@@ -515,6 +618,12 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       const targetBranch = branches.find(b => b.id === targetBranchId);
       
       if (!sourceBranch || !targetBranch) return false;
+
+      // PROTECTION: Cannot merge FROM a protected (main) branch
+      if (sourceBranch.is_protected) {
+        console.error('Cannot merge from protected branch (Main Story)');
+        return false;
+      }
 
       const mergedContent = `${targetBranch.content}\n\n--- Merged from "${sourceBranch.name}" ---\n\n${sourceBranch.content}`;
 
@@ -874,6 +983,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     reviewChapter,
     updateBranchContent,
     createNewBranch,
+    forkFromChapter,
     switchToBranch,
     mergeBranch,
     mergeChapter,

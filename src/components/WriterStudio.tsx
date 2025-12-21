@@ -58,6 +58,7 @@ const WriterStudio = () => {
     reviewChapter,
     updateBranchContent,
     createNewBranch,
+    forkFromChapter,
     switchToBranch,
     mergeBranch,
     mergeChapter,
@@ -167,6 +168,7 @@ const WriterStudio = () => {
           onSubmitChapterForReview={submitChapterForReview}
           onReviewChapter={reviewChapter}
           onCreateBranch={createNewBranch}
+          onForkFromChapter={forkFromChapter}
           onSwitchBranch={handleSwitchBranch}
           onSwitchChapter={handleSwitchChapter}
           onRestoreSavePoint={restoreSavePoint}

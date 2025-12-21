@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { GitBranch, FileText, AlertTriangle, Brain, MousePointer } from 'lucide-react';
+import { GitBranch, FileText, AlertTriangle, Brain, MousePointer, Shield } from 'lucide-react';
 import SmartMergeDialog, { type MergeMode } from './SmartMergeDialog';
 import ManualMergeDialog from './ManualMergeDialog';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
@@ -235,12 +235,30 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     }
   };
 
+  // Check if current branch is protected (Main Story) - can't merge FROM it
+  const isProtectedBranch = currentBranch?.is_protected || currentBranch?.is_main;
+
+  if (isProtectedBranch) {
+    return (
+      <Card className="p-6 text-center">
+        <Shield className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">Main Story is Protected</h3>
+        <p className="text-muted-foreground">
+          The Main Story cannot be merged into other branches. You can only merge chapters INTO the Main Story from other branches.
+        </p>
+        <p className="text-sm text-muted-foreground mt-2">
+          Switch to a different branch to merge content into the Main Story.
+        </p>
+      </Card>
+    );
+  }
+
   if (approvedChapters.length === 0 && currentBranch?.is_main) {
     return (
       <Card className="p-6 text-center">
-        <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Approved Content to Merge</h3>
-        <p className="text-gray-600">
+        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">No Approved Content to Merge</h3>
+        <p className="text-muted-foreground">
           Chapters need to be approved before they can be merged between story versions.
         </p>
       </Card>
