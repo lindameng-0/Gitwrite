@@ -74,8 +74,8 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
     ? chapters.find(c => c.chapter_order === currentBranch.fork_point_order)
     : null;
 
-  // Check if current branch has approved chapters (ready for merge request)
-  const hasApprovedChapters = chapters.some(c => c.status === 'approved');
+  // Check if current branch has content (ready for proposal)
+  const hasContent = chapters.some(c => c.content.trim().length > 0);
 
   const getDefaultLayout = (): number[] => {
     const saved = localStorage.getItem(PANEL_LAYOUT_KEY);
@@ -138,13 +138,13 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {/* Submit for Official Review button - only for writers with approved chapters */}
-                {!isAdmin && storyId && hasApprovedChapters && (
+                {/* Propose Changes button - only for writers with content */}
+                {!isAdmin && storyId && hasContent && (
                   <MergeRequestButton
                     branch={currentBranch}
                     mainBranch={mainBranch}
                     storyId={storyId}
-                    hasApprovedChapters={hasApprovedChapters}
+                    hasContent={hasContent}
                   />
                 )}
                 <Button
@@ -255,7 +255,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                         branch={currentBranch}
                         mainBranch={mainBranch}
                         storyId={storyId}
-                        hasApprovedChapters={hasApprovedChapters}
+                        hasContent={hasContent}
                       />
                     ) : isOnMainBranch ? (
                       <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
