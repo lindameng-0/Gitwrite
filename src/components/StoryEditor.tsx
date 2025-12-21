@@ -10,7 +10,7 @@ import SavePointsPanel from './SavePointsPanel';
 import MergeInterface from './MergeInterface';
 import WriterProgressPanel from './WriterProgressPanel';
 import MergeRequestButton from './MergeRequestButton';
-import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
+import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint, BranchStatus } from '@/hooks/useStoryData';
 
 interface StoryEditorProps {
   branches: StoryBranchWithMeta[];
@@ -26,6 +26,10 @@ interface StoryEditorProps {
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
   onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
+  onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
+  onContinueBranch?: (branchId: string) => Promise<string | null>;
+  onDeleteBranch?: (branchId: string) => Promise<boolean>;
+  onProposeBranch?: (branchId: string) => Promise<boolean>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
@@ -54,6 +58,10 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onReviewChapter,
   onCreateBranch,
   onForkFromChapter,
+  onForkFromBranch,
+  onContinueBranch,
+  onDeleteBranch,
+  onProposeBranch,
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
@@ -113,6 +121,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
             onSwitchBranch={onSwitchBranch}
             onSwitchChapter={onSwitchChapter}
             onForkFromChapter={onForkFromChapter}
+            onForkFromBranch={onForkFromBranch}
+            onContinueBranch={onContinueBranch}
+            onDeleteBranch={onDeleteBranch}
             currentUserName={currentUserName}
             isAdmin={isAdmin}
           />
@@ -145,6 +156,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                     mainBranch={mainBranch}
                     storyId={storyId}
                     hasContent={hasContent}
+                    onProposeBranch={onProposeBranch}
                   />
                 )}
                 <Button
@@ -256,6 +268,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                         mainBranch={mainBranch}
                         storyId={storyId}
                         hasContent={hasContent}
+                        onProposeBranch={onProposeBranch}
                       />
                     ) : isOnMainBranch ? (
                       <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">

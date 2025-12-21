@@ -60,6 +60,11 @@ const WriterStudio = () => {
     updateBranchContent,
     createNewBranch,
     forkFromChapter,
+    forkFromBranch,
+    continueBranch,
+    deleteBranch,
+    setBranchStatus,
+    proposeBranch,
     switchToBranch,
     mergeBranch,
     mergeChapter,
@@ -157,7 +162,7 @@ const WriterStudio = () => {
       </div>
       
       <div className="flex-1 min-h-0 overflow-hidden">
-        <StoryBranchStudio
+          <StoryBranchStudio
           branches={branches}
           chapters={chapters}
           mainBranchChapters={mainBranchChapters}
@@ -171,6 +176,11 @@ const WriterStudio = () => {
           onReviewChapter={reviewChapter}
           onCreateBranch={createNewBranch}
           onForkFromChapter={forkFromChapter}
+          onForkFromBranch={forkFromBranch}
+          onContinueBranch={continueBranch}
+          onDeleteBranch={deleteBranch}
+          onSetBranchStatus={setBranchStatus}
+          onProposeBranch={proposeBranch}
           onSwitchBranch={handleSwitchBranch}
           onSwitchChapter={handleSwitchChapter}
           onRestoreSavePoint={restoreSavePoint}

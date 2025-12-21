@@ -7,7 +7,7 @@ import BranchVisualizer, { BranchVisualizerRef } from './BranchVisualizer';
 import MainStoryPreview from './MainStoryPreview';
 import ReviewModePanel from './ReviewModePanel';
 import AdminMergeQueue from './AdminMergeQueue';
-import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint } from '@/hooks/useStoryData';
+import type { StoryBranchWithMeta, ChapterWithReviews, SavePoint, BranchStatus } from '@/hooks/useStoryData';
 
 interface StoryBranchStudioProps {
   branches: StoryBranchWithMeta[];
@@ -23,6 +23,11 @@ interface StoryBranchStudioProps {
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
   onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
+  onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
+  onContinueBranch?: (branchId: string) => Promise<string | null>;
+  onDeleteBranch?: (branchId: string) => Promise<boolean>;
+  onSetBranchStatus?: (branchId: string, status: BranchStatus) => Promise<boolean>;
+  onProposeBranch?: (branchId: string) => Promise<boolean>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
@@ -50,6 +55,11 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onReviewChapter,
   onCreateBranch,
   onForkFromChapter,
+  onForkFromBranch,
+  onContinueBranch,
+  onDeleteBranch,
+  onSetBranchStatus,
+  onProposeBranch,
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
@@ -118,6 +128,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
                   storyId={storyId}
                   onLoadChaptersFromBranch={onLoadTargetChapters}
                   onMergeChapter={onMergeChapter}
+                  onSetBranchStatus={onSetBranchStatus}
                   mainBranchId={mainBranch?.id}
                 />
               )}
@@ -212,6 +223,10 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onReviewChapter={onReviewChapter}
               onCreateBranch={onCreateBranch}
               onForkFromChapter={onForkFromChapter}
+              onForkFromBranch={onForkFromBranch}
+              onContinueBranch={onContinueBranch}
+              onDeleteBranch={onDeleteBranch}
+              onProposeBranch={onProposeBranch}
               onSwitchBranch={onSwitchBranch}
               onSwitchChapter={onSwitchChapter}
               onRestoreSavePoint={onRestoreSavePoint}
@@ -221,6 +236,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onMoveChapter={onMoveChapter}
               isAdmin={false}
               currentUserName={currentUserName}
+              storyId={storyId}
             />
           </TabsContent>
         </div>
