@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { GitBranch, Clock, BarChart3 } from 'lucide-react';
+import { Layers, Clock, BarChart3, Lock, ArrowRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
 import ChapterFirstSidebar from './ChapterFirstSidebar';
 import StoryEditorContent from './StoryEditorContent';
 import SavePointsPanel from './SavePointsPanel';
@@ -60,9 +61,13 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
 }) => {
   const { toast } = useToast();
 
-  // Get main branch and its chapters for sidebar
+  // Get current branch info for context banner
   const mainBranch = branches.find(b => b.is_main);
+  const currentBranch = branches.find(b => b.id === activeBranch);
   const isOnMainBranch = mainBranch?.id === activeBranch;
+  const forkPointChapter = currentBranch?.fork_point_order 
+    ? chapters.find(c => c.chapter_order === currentBranch.fork_point_order)
+    : null;
 
   const getDefaultLayout = (): number[] => {
     const saved = localStorage.getItem(PANEL_LAYOUT_KEY);
@@ -108,13 +113,43 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors" />
       
       <ResizablePanel defaultSize={defaultLayout[1]} minSize={30} className="h-full min-h-0 overflow-hidden">
-        <div className="h-full min-h-0 overflow-hidden">
-          <StoryEditorContent
-            chapters={chapters}
-            activeChapter={activeChapter}
-            onUpdateChapterContent={onUpdateChapterContent}
-            onSubmitChapterForReview={onSubmitChapterForReview}
-          />
+        <div className="h-full min-h-0 overflow-hidden flex flex-col">
+          {/* Draft Context Banner */}
+          {!isOnMainBranch && currentBranch && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800 px-4 py-2.5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2 text-sm">
+                <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-blue-900 dark:text-blue-100">
+                  Editing: <span className="font-medium">{currentBranch.name}</span>
+                </span>
+                {forkPointChapter && (
+                  <span className="text-blue-700 dark:text-blue-300">
+                    (based on Chapter {forkPointChapter.chapter_order})
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                onClick={() => mainBranch && onSwitchBranch(mainBranch.id)}
+              >
+                <Lock className="w-3 h-3 mr-1" />
+                View Published
+                <ArrowRight className="w-3 h-3 ml-1" />
+              </Button>
+            </div>
+          )}
+          
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <StoryEditorContent
+              chapters={chapters}
+              activeChapter={activeChapter}
+              onUpdateChapterContent={onUpdateChapterContent}
+              onSubmitChapterForReview={onSubmitChapterForReview}
+              activeBranch={currentBranch}
+            />
+          </div>
         </div>
       </ResizablePanel>
       
@@ -130,9 +165,9 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                     <Clock className="w-4 h-4" />
                     Save Points
                   </TabsTrigger>
-                  <TabsTrigger value="merge" className="flex items-center gap-2">
-                    <GitBranch className="w-4 h-4" />
-                    Merge
+              <TabsTrigger value="merge" className="flex items-center gap-2">
+                    <Layers className="w-4 h-4" />
+                    Publish
                   </TabsTrigger>
                 </TabsList>
               </div>

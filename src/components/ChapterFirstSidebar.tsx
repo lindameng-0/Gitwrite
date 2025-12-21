@@ -6,13 +6,13 @@ import { Input } from '@/components/ui/input';
 import { 
   FileText, 
   Plus, 
-  GitBranch, 
+  Layers, 
   ChevronDown, 
   ChevronRight, 
   Lock,
   CheckCircle,
   Clock,
-  GitFork
+  FilePlus
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
@@ -116,11 +116,11 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   return (
     <div className="w-full bg-background border-r border-border h-full min-h-0 flex flex-col">
       <div className="p-4 flex-1 min-h-0 overflow-y-auto">
-        {/* Main Story Header */}
+        {/* Published Story Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 text-amber-500" />
-            <h2 className="text-lg font-semibold text-foreground">Main Story</h2>
+            <h2 className="text-lg font-semibold text-foreground">Published Version</h2>
           </div>
           {isOnMainBranch && (
             <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
@@ -129,7 +129,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
           )}
         </div>
 
-        {/* Switch to Main Story Button (if not on main) */}
+        {/* Switch to Published Version Button (if not on main) */}
         {!isOnMainBranch && mainBranch && (
           <Button
             variant="outline"
@@ -138,7 +138,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
             onClick={() => onSwitchBranch(mainBranch.id)}
           >
             <Lock className="w-4 h-4 mr-2" />
-            Switch to Main Story
+            View Published Version
           </Button>
         )}
 
@@ -239,18 +239,18 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                       </div>
                     </div>
 
-                    {/* Status & Branch Indicator */}
+                    {/* Status & Drafts Indicator */}
                     <div className="flex items-center gap-1.5">
                       {hasBranches && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                          <GitBranch className="w-3 h-3 mr-1" />
-                          {chapterBranches.length}
+                          <Layers className="w-3 h-3 mr-1" />
+                          {chapterBranches.length} {chapterBranches.length === 1 ? 'draft' : 'drafts'}
                         </Badge>
                       )}
                       {getStatusIcon(chapter.status)}
                     </div>
 
-                    {/* Fork Button (on hover) */}
+                    {/* Create Draft Button (on hover) */}
                     {onForkFromChapter && (
                       <Button
                         variant="ghost"
@@ -260,18 +260,18 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                           e.stopPropagation();
                           setForkingChapterId(chapter.id);
                         }}
-                        title="Create branch from this chapter"
+                        title="Create new draft from this chapter"
                       >
-                        <GitFork className="w-3.5 h-3.5" />
+                        <FilePlus className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
 
-                  {/* Fork Form */}
+                  {/* Create Draft Form */}
                   {forkingChapterId === chapter.id && (
                     <div className="ml-7 mt-1 p-2 bg-muted/30 rounded-lg border border-border">
                       <Input
-                        placeholder="Branch name..."
+                        placeholder="Draft name..."
                         value={newBranchName}
                         onChange={(e) => setNewBranchName(e.target.value)}
                         className="mb-2 h-7 text-xs"
@@ -284,8 +284,8 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                           className="h-6 text-xs px-2" 
                           onClick={() => handleForkFromChapter(chapter.id)}
                         >
-                          <GitFork className="w-3 h-3 mr-1" />
-                          Fork
+                          <FilePlus className="w-3 h-3 mr-1" />
+                          Create Draft
                         </Button>
                         <Button 
                           size="sm" 
@@ -302,7 +302,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                     </div>
                   )}
 
-                  {/* Branches for this chapter */}
+                  {/* Drafts for this chapter */}
                   <CollapsibleContent>
                     <div className="ml-7 mt-1 space-y-1">
                       {chapterBranches.map((branch) => {
@@ -318,7 +318,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                             }`}
                             onClick={() => onSwitchBranch(branch.id)}
                           >
-                            <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+                            <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                             <span className="text-sm text-foreground truncate flex-1">
                               {branch.name}
                             </span>

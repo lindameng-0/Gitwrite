@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { GitBranch, FileText, AlertTriangle, Brain, MousePointer, Shield } from 'lucide-react';
+import { Layers, FileText, AlertTriangle, Brain, MousePointer, Shield } from 'lucide-react';
 import SmartMergeDialog, { type MergeMode } from './SmartMergeDialog';
 import ManualMergeDialog from './ManualMergeDialog';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
@@ -245,12 +245,12 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     return (
       <Card className="p-6 text-center">
         <Shield className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">Main Story is Protected</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">Published Version is Protected</h3>
         <p className="text-muted-foreground">
-          The Main Story cannot be merged into other branches. You can only merge chapters INTO the Main Story from other branches.
+          The Published Version cannot be published into other drafts. You can only publish chapters INTO the Published Version from other drafts.
         </p>
         <p className="text-sm text-muted-foreground mt-2">
-          Switch to a different branch to merge content into the Main Story.
+          Switch to a different draft to publish content to the Published Version.
         </p>
       </Card>
     );
@@ -260,9 +260,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     return (
       <Card className="p-6 text-center">
         <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">No Approved Content to Merge</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">No Approved Content to Publish</h3>
         <p className="text-muted-foreground">
-          Chapters need to be approved before they can be merged into the Main Story.
+          Chapters need to be approved before they can be published to the Published Version.
         </p>
       </Card>
     );
@@ -272,9 +272,9 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
     return (
       <Card className="p-6 text-center">
         <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">No Main Story Found</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">No Published Version Found</h3>
         <p className="text-muted-foreground">
-          A main story branch is required for merging.
+          A published version is required for publishing.
         </p>
       </Card>
     );
@@ -289,25 +289,25 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Merge Target - Fixed to Main Story */}
+      {/* Publish Target - Fixed to Published Version */}
       <Card className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800">
         <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Shield className="w-5 h-5 text-amber-600" />
-          Merge into Main Story
+          Publish to Official Version
         </h3>
         
         <p className="text-sm text-muted-foreground mb-4">
-          From branch: <span className="font-medium text-foreground">{currentBranch?.name || 'Current Branch'}</span>
+          From draft: <span className="font-medium text-foreground">{currentBranch?.name || 'Current Draft'}</span>
           {' → '}
-          <span className="font-medium text-amber-700 dark:text-amber-300">Main Story</span>
+          <span className="font-medium text-amber-700 dark:text-amber-300">Published Version</span>
         </p>
 
         <div>
           <label className="block text-sm font-medium text-muted-foreground mb-2">
-            Merge note (optional):
+            Publish note (optional):
           </label>
           <Textarea
-            placeholder="Describe what you're merging and why..."
+            placeholder="Describe what you're publishing and why..."
             value={mergeNote}
             onChange={(e) => setMergeNote(e.target.value)}
             className="min-h-[80px]"
@@ -315,12 +315,12 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
         </div>
       </Card>
 
-      {/* Individual Chapter Merges */}
+      {/* Individual Chapter Publishing */}
       {approvedChapters.length > 0 && (
         <Card className="p-6">
           <h4 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-green-600" />
-            Chapter Merging
+            Chapter Publishing
           </h4>
           
           <div className="space-y-3">
@@ -338,7 +338,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                       </p>
                     </div>
                     <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">
-                      Ready to Merge
+                      Ready to Publish
                     </Badge>
                   </div>
                   
@@ -350,16 +350,16 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
                       disabled={!mainBranch || isMerging}
                     >
                       <MousePointer className="w-4 h-4 mr-2" />
-                      Quick Merge
+                      Quick Publish
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => handleSmartMergeChapter(chapter)}
                       size="sm" 
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                       disabled={!mainBranch || isMerging}
                     >
                       <Brain className="w-4 h-4 mr-2" />
-                      AI Merge
+                      AI Publish
                     </Button>
                   </div>
                 </div>
@@ -372,7 +372,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
               <div className="flex items-start gap-2">
                 <MousePointer className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium mb-1">Quick Merge</p>
+                  <p className="text-sm font-medium mb-1">Quick Publish</p>
                   <p className="text-xs text-muted-foreground">
                     Manually choose where to place the chapter: before, after, or replace an existing chapter.
                   </p>
@@ -383,7 +383,7 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
               <div className="flex items-start gap-2">
                 <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">AI Merge</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">AI Publish</p>
                   <p className="text-xs text-blue-800 dark:text-blue-200">
                     AI analyzes content to suggest optimal placement and detect conflicts.
                   </p>
@@ -394,20 +394,20 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
         </Card>
       )}
 
-      {/* Full Story Version Merge */}
+      {/* Full Story Version Publish */}
       <Card className="p-6">
         <h4 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-purple-600" />
-          Merge All Approved Chapters
+          <Layers className="w-5 h-5 text-purple-600" />
+          Publish All Approved Chapters
         </h4>
         
         <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-lg mb-4 border border-purple-200 dark:border-purple-800">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-5 h-5 text-purple-600 mt-0.5" />
             <div>
-              <p className="text-purple-900 dark:text-purple-100 font-medium mb-1">Bulk Merge Operation</p>
+              <p className="text-purple-900 dark:text-purple-100 font-medium mb-1">Bulk Publish Operation</p>
               <p className="text-sm text-purple-800 dark:text-purple-200">
-                This will merge all {approvedChapters.length} approved chapter(s) from this branch into the Main Story at once.
+                This will publish all {approvedChapters.length} approved chapter(s) from this draft to the Published Version at once.
               </p>
             </div>
           </div>
@@ -422,20 +422,20 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
               const success = await onMergeStoryVersion(activeBranch, mainBranch.id, mergeNote);
               if (success) {
                 toast({
-                  title: "Merged to Main Story!",
-                  description: "All approved chapters have been merged into the Main Story.",
+                  title: "Published to Official Version",
+                  description: "All approved chapters have been published to the Published Version.",
                 });
                 setMergeNote('');
               } else {
                 toast({
-                  title: "Merge failed",
-                  description: "There was an issue merging into the Main Story. Please try again.",
+                  title: "Publish failed",
+                  description: "There was an issue publishing to the Published Version. Please try again.",
                   variant: "destructive",
                 });
               }
             } catch (error) {
               toast({
-                title: "Merge error",
+                title: "Publish error",
                 description: "An unexpected error occurred during the merge.",
                 variant: "destructive",
               });
@@ -447,8 +447,8 @@ const MergeInterface: React.FC<MergeInterfaceProps> = ({
           className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950"
           disabled={!mainBranch || isMerging || approvedChapters.length === 0}
         >
-          <GitBranch className="w-4 h-4 mr-2" />
-          {isMerging ? 'Merging to Main Story...' : `Merge ${approvedChapters.length} Chapter(s) to Main Story`}
+          <Layers className="w-4 h-4 mr-2" />
+          {isMerging ? 'Publishing to Official Version...' : `Publish ${approvedChapters.length} Chapter(s)`}
         </Button>
       </Card>
 
