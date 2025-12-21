@@ -23,7 +23,7 @@ interface VersionData {
   request: MergeRequestWithDetails;
   chapters: ChapterWithReviews[];
   wordCount: number;
-  approvedCount: number;
+  chapterCount: number;
 }
 
 const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
@@ -46,8 +46,9 @@ const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
       const versionData = await Promise.all(
         group.requests.map(async (request) => {
           const chapters = await onLoadChaptersFromBranch(request.source_branch_id);
-          const approvedChapters = chapters.filter(c => c.status === 'approved');
-          const wordCount = approvedChapters.reduce((acc, c) => {
+          // Count all chapters with content, not just approved ones
+          const chaptersWithContent = chapters.filter(c => c.content && c.content.trim().length > 0);
+          const wordCount = chaptersWithContent.reduce((acc, c) => {
             const text = c.content.replace(/<[^>]*>/g, '').trim();
             return acc + (text ? text.split(/\s+/).length : 0);
           }, 0);
@@ -56,7 +57,7 @@ const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
             request,
             chapters,
             wordCount,
-            approvedCount: approvedChapters.length
+            chapterCount: chaptersWithContent.length
           };
         })
       );
@@ -136,14 +137,14 @@ const ConflictComparePanel: React.FC<ConflictComparePanelProps> = ({
             <div className="flex gap-4 mb-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <FileText className="w-3 h-3" />
-                {version.approvedCount} chapter{version.approvedCount !== 1 ? 's' : ''}
+                {version.chapterCount} chapter{version.chapterCount !== 1 ? 's' : ''}
               </span>
               <span>{version.wordCount.toLocaleString()} words</span>
             </div>
 
             <ScrollArea className="h-32">
               <div className="text-sm text-muted-foreground">
-                {version.chapters.filter(c => c.status === 'approved').map((chapter, idx) => (
+                {version.chapters.filter(c => c.content && c.content.trim().length > 0).map((chapter) => (
                   <div key={chapter.id} className="mb-2">
                     <span className="font-medium text-foreground">{chapter.title}:</span>{' '}
                     <span className="line-clamp-2">

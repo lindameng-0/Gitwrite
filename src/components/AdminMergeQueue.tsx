@@ -136,8 +136,9 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     const versionsData = await Promise.all(
       group.requests.map(async (request) => {
         const chapters = await onLoadChaptersFromBranch(request.source_branch_id);
-        const approvedChapters = chapters.filter(c => c.status === 'approved');
-        const wordCount = approvedChapters.reduce((acc, c) => {
+        // Count all chapters with content, not just approved ones
+        const chaptersWithContent = chapters.filter(c => c.content && c.content.trim().length > 0);
+        const wordCount = chaptersWithContent.reduce((acc, c) => {
           const text = c.content.replace(/<[^>]*>/g, '').trim();
           return acc + (text ? text.split(/\s+/).length : 0);
         }, 0);
@@ -145,7 +146,7 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
           request,
           chapters,
           wordCount,
-          approvedCount: approvedChapters.length
+          approvedCount: chaptersWithContent.length
         };
       })
     );
