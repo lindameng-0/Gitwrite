@@ -13,9 +13,12 @@ import {
   CheckCircle,
   Clock,
   FilePlus,
-  Pencil
+  Pencil,
+  Users
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import CollaboratorRequestButton from './CollaboratorRequestButton';
+import { useDraftCollaboration } from '@/hooks/useDraftCollaboration';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface ChapterFirstSidebarProps {

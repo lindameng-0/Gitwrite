@@ -151,6 +151,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               onUpdateChapterContent={onUpdateChapterContent}
               onSubmitChapterForReview={onSubmitChapterForReview}
               activeBranch={currentBranch}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
