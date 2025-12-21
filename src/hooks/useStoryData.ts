@@ -96,6 +96,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
   const [story, setStory] = useState<Story | null>(null);
   const [branches, setBranches] = useState<StoryBranchWithMeta[]>([]);
   const [chapters, setChapters] = useState<ChapterWithReviews[]>([]);
+  const [mainBranchChapters, setMainBranchChapters] = useState<ChapterWithReviews[]>([]); // Always holds main branch chapters for sidebar
   const [savePoints, setSavePoints] = useState<SavePoint[]>([]);
   const [activeBranch, setActiveBranch] = useState<string>(initialBranchId || '');
   const [activeChapter, setActiveChapter] = useState<string>(initialChapterId || '');
@@ -118,6 +119,40 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       });
     }
   }, [activeBranch]);
+
+  // Load main branch chapters separately for sidebar structure (runs once after branches load)
+  useEffect(() => {
+    const mainBranch = branches.find(b => b.is_main);
+    if (mainBranch) {
+      loadMainBranchChapters(mainBranch.id);
+    }
+  }, [branches]);
+
+  const loadMainBranchChapters = async (mainBranchId: string) => {
+    try {
+      const { data: chaptersData, error: chaptersError } = await supabase
+        .from('chapters')
+        .select(`
+          *,
+          chapter_reviews (*)
+        `)
+        .eq('branch_id', mainBranchId)
+        .order('chapter_order', { ascending: true });
+
+      if (chaptersError) throw chaptersError;
+
+      const chaptersWithReviews: ChapterWithReviews[] = chaptersData.map(chapter => ({
+        ...chapter,
+        reviews: (chapter.chapter_reviews || []) as ChapterReview[],
+        canMerge: chapter.status === 'approved' && (chapter.chapter_reviews || []).every((review: any) => review.status === 'approved'),
+        isInherited: false
+      }));
+
+      setMainBranchChapters(chaptersWithReviews);
+    } catch (error) {
+      console.error('Error loading main branch chapters:', error);
+    }
+  };
 
   const loadStoryData = async () => {
     if (!studioId) return;
@@ -982,6 +1017,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     story,
     branches,
     chapters,
+    mainBranchChapters, // Always contains main branch chapters for sidebar structure
     savePoints,
     activeBranch,
     activeChapter,

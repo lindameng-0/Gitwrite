@@ -12,14 +12,16 @@ import {
   Lock,
   CheckCircle,
   Clock,
-  FilePlus
+  FilePlus,
+  Pencil
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface ChapterFirstSidebarProps {
   branches: StoryBranchWithMeta[];
-  chapters: ChapterWithReviews[]; // Main branch chapters
+  chapters: ChapterWithReviews[]; // Current branch chapters (for editing)
+  mainBranchChapters: ChapterWithReviews[]; // Always main branch chapters (for sidebar structure)
   activeBranch: string;
   activeChapter: string;
   onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
@@ -53,6 +55,7 @@ const getStatusColor = (status: string) => {
 const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   branches,
   chapters,
+  mainBranchChapters,
   activeBranch,
   activeChapter,
   onCreateChapter,
@@ -71,11 +74,20 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   // Get main branch
   const mainBranch = branches.find(b => b.is_main);
   const isOnMainBranch = mainBranch?.id === activeBranch;
+  const currentBranch = branches.find(b => b.id === activeBranch);
 
-  // Get branches that forked from each chapter
-  const getBranchesForChapter = (chapterId: string) => {
+  // Use main branch chapters for sidebar structure (always visible)
+  const sidebarChapters = mainBranchChapters;
+
+  // Get the current draft's chapters indexed by order for comparison
+  const currentDraftChaptersByOrder = new Map(
+    chapters.map(c => [c.chapter_order, c])
+  );
+
+  // Get branches that forked from each chapter (by fork_point_chapter_id matching main chapter ids)
+  const getBranchesForChapter = (chapterId: string, chapterOrder: number) => {
     return branches.filter(b => 
-      !b.is_main && b.fork_point_chapter_id === chapterId
+      !b.is_main && (b.fork_point_chapter_id === chapterId || b.fork_point_order === chapterOrder)
     );
   };
 
@@ -188,13 +200,21 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
           </div>
         )}
 
-        {/* Chapter List */}
+        {/* Chapter List - Always shows main branch structure */}
         <div className="space-y-1">
-          {chapters.map((chapter) => {
-            const chapterBranches = getBranchesForChapter(chapter.id);
+          {sidebarChapters.map((chapter) => {
+            const chapterBranches = getBranchesForChapter(chapter.id, chapter.chapter_order);
             const hasBranches = chapterBranches.length > 0;
             const isExpanded = expandedChapters.has(chapter.id);
-            const isChapterActive = chapter.id === activeChapter && isOnMainBranch;
+            
+            // Check if this chapter is active (either on main branch, or matching order in current draft)
+            const isChapterActiveOnMain = chapter.id === activeChapter && isOnMainBranch;
+            const draftChapter = currentDraftChaptersByOrder.get(chapter.chapter_order);
+            const isChapterActiveOnDraft = !isOnMainBranch && draftChapter?.id === activeChapter;
+            const isChapterActive = isChapterActiveOnMain || isChapterActiveOnDraft;
+            
+            // Check if current draft is viewing this chapter's fork point
+            const isDraftForkPoint = !isOnMainBranch && currentBranch?.fork_point_order === chapter.chapter_order;
 
             return (
               <div key={chapter.id}>
@@ -203,13 +223,24 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                     className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
                       isChapterActive 
                         ? 'bg-primary/10 border border-primary/30' 
-                        : 'hover:bg-muted/50 border border-transparent'
+                        : isDraftForkPoint
+                          ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'
+                          : 'hover:bg-muted/50 border border-transparent'
                     }`}
                     onClick={() => {
-                      if (mainBranch) {
-                        onSwitchBranch(mainBranch.id);
+                      if (isOnMainBranch) {
+                        // On main branch, just switch chapter
+                        onSwitchChapter(chapter.id);
+                      } else if (draftChapter) {
+                        // On draft, switch to the draft's version of this chapter
+                        onSwitchChapter(draftChapter.id);
+                      } else {
+                        // No draft version exists, switch to main branch and show this chapter
+                        if (mainBranch) {
+                          onSwitchBranch(mainBranch.id);
+                        }
+                        onSwitchChapter(chapter.id);
                       }
-                      onSwitchChapter(chapter.id);
                     }}
                   >
                     {/* Expand Toggle */}
@@ -236,11 +267,20 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                         <span className="text-sm font-medium text-foreground truncate">
                           {chapter.title}
                         </span>
+                        {/* Indicator if viewing draft version */}
+                        {!isOnMainBranch && draftChapter && (
+                          <Pencil className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                        )}
                       </div>
                     </div>
 
                     {/* Status & Drafts Indicator */}
                     <div className="flex items-center gap-1.5">
+                      {isDraftForkPoint && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
+                          Fork Point
+                        </Badge>
+                      )}
                       {hasBranches && (
                         <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
                           <Layers className="w-3 h-3 mr-1" />
@@ -338,7 +378,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
           })}
         </div>
 
-        {chapters.length === 0 && (
+        {sidebarChapters.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No chapters yet</p>
