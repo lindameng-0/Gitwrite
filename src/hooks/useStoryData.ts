@@ -34,6 +34,7 @@ interface StoryBranch {
   position_x: number | null;
   position_y: number | null;
   status: BranchStatus;
+  deleted_at: string | null;
 }
 
 interface Chapter {
@@ -225,12 +226,14 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
 
       if (branchError) throw branchError;
 
-      // Convert to our format and find active branch
-      const branchesWithMeta: StoryBranchWithMeta[] = (branchData || []).map(branch => ({
-        ...branch,
-        status: branch.status as BranchStatus,
-        isActive: branch.is_active
-      }));
+      // Convert to our format and filter out deleted branches
+      const branchesWithMeta: StoryBranchWithMeta[] = (branchData || [])
+        .filter(branch => !branch.deleted_at) // Exclude soft-deleted branches
+        .map(branch => ({
+          ...branch,
+          status: branch.status as BranchStatus,
+          isActive: branch.is_active
+        }));
       
       setBranches(branchesWithMeta);
       
@@ -1022,7 +1025,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     }
   };
 
-  // Delete a branch (only drafts owned by user, not main/protected)
+  // Soft delete a branch (only drafts owned by user, not main/protected)
   const deleteBranch = async (branchId: string): Promise<boolean> => {
     try {
       const branch = branches.find(b => b.id === branchId);
@@ -1040,23 +1043,15 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
         return false;
       }
 
-      // Delete all chapters in this branch first
-      const { error: chaptersError } = await supabase
-        .from('chapters')
-        .delete()
-        .eq('branch_id', branchId);
-
-      if (chaptersError) throw chaptersError;
-
-      // Delete the branch
+      // Soft delete: set deleted_at timestamp
       const { error: branchError } = await supabase
         .from('story_branches')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', branchId);
 
       if (branchError) throw branchError;
 
-      // Update local state
+      // Update local state - remove from view
       setBranches(prev => prev.filter(b => b.id !== branchId));
       
       // Switch to main branch if we deleted the active branch
@@ -1070,6 +1065,37 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
       return true;
     } catch (error) {
       console.error('Error deleting branch:', error);
+      return false;
+    }
+  };
+
+  // Archive a branch (sets status to archived, different from delete)
+  const archiveBranch = async (branchId: string): Promise<boolean> => {
+    try {
+      const branch = branches.find(b => b.id === branchId);
+      if (!branch) return false;
+      
+      // Cannot archive main branches
+      if (branch.is_main) {
+        console.error('Cannot archive main branch');
+        return false;
+      }
+
+      const { error } = await supabase
+        .from('story_branches')
+        .update({ status: 'archived' })
+        .eq('id', branchId);
+
+      if (error) throw error;
+
+      // Update local state
+      setBranches(prev => prev.map(b => 
+        b.id === branchId ? { ...b, status: 'archived' as BranchStatus } : b
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error archiving branch:', error);
       return false;
     }
   };
@@ -1211,6 +1237,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     forkFromBranch,
     continueBranch,
     deleteBranch,
+    archiveBranch,
     setBranchStatus,
     proposeBranch,
     switchToBranch,

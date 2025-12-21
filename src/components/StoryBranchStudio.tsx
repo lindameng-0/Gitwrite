@@ -26,6 +26,7 @@ interface StoryBranchStudioProps {
   onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
   onContinueBranch?: (branchId: string) => Promise<string | null>;
   onDeleteBranch?: (branchId: string) => Promise<boolean>;
+  onArchiveBranch?: (branchId: string) => Promise<boolean>;
   onSetBranchStatus?: (branchId: string, status: BranchStatus) => Promise<boolean>;
   onProposeBranch?: (branchId: string) => Promise<boolean>;
   onSwitchBranch: (branchId: string) => Promise<void>;
@@ -58,6 +59,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onForkFromBranch,
   onContinueBranch,
   onDeleteBranch,
+  onArchiveBranch,
   onSetBranchStatus,
   onProposeBranch,
   onSwitchBranch,
@@ -226,6 +228,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               onForkFromBranch={onForkFromBranch}
               onContinueBranch={onContinueBranch}
               onDeleteBranch={onDeleteBranch}
+              onArchiveBranch={onArchiveBranch}
               onProposeBranch={onProposeBranch}
               onSwitchBranch={onSwitchBranch}
               onSwitchChapter={onSwitchChapter}

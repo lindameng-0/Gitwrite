@@ -30,6 +30,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import type { StoryBranchWithMeta, ChapterWithReviews, BranchStatus } from '@/hooks/useStoryData';
 
 interface ChapterFirstSidebarProps {
@@ -45,6 +52,7 @@ interface ChapterFirstSidebarProps {
   onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
   onContinueBranch?: (branchId: string) => Promise<string | null>;
   onDeleteBranch?: (branchId: string) => Promise<boolean>;
+  onArchiveBranch?: (branchId: string) => Promise<boolean>;
   currentUserName?: string;
   isAdmin?: boolean;
 }
@@ -95,6 +103,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   onForkFromBranch,
   onContinueBranch,
   onDeleteBranch,
+  onArchiveBranch,
   currentUserName,
   isAdmin = false
 }) => {
@@ -390,108 +399,80 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                         else if (branchStatus === 'alternate') borderClass = 'border-purple-300 dark:border-purple-700 border-dashed';
                         
                         return (
-                          <div key={branch.id} className="group">
-                            <div
-                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all ${
-                                isBranchActive 
-                                  ? 'bg-accent/50' 
-                                  : branchStatus === 'alternate'
-                                    ? 'bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-900/30'
-                                    : 'hover:bg-muted/30'
-                              } border ${borderClass}`}
-                              onClick={() => onSwitchBranch(branch.id)}
-                            >
-                              {branchStatus === 'alternate' ? (
-                                <Archive className="w-3.5 h-3.5 text-purple-500" />
-                              ) : branchStatus === 'proposed' ? (
-                                <Clock className="w-3.5 h-3.5 text-yellow-500" />
-                              ) : (
-                                <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                          <ContextMenu key={branch.id}>
+                            <ContextMenuTrigger asChild>
+                              <div className="group">
+                                <div
+                                  className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all ${
+                                    isBranchActive 
+                                      ? 'bg-accent/50' 
+                                      : branchStatus === 'alternate'
+                                        ? 'bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-900/30'
+                                        : 'hover:bg-muted/30'
+                                  } border ${borderClass}`}
+                                  onClick={() => onSwitchBranch(branch.id)}
+                                >
+                                  {branchStatus === 'alternate' ? (
+                                    <Archive className="w-3.5 h-3.5 text-purple-500" />
+                                  ) : branchStatus === 'proposed' ? (
+                                    <Clock className="w-3.5 h-3.5 text-yellow-500" />
+                                  ) : (
+                                    <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                                  )}
+                                  <span className="text-sm text-foreground truncate flex-1">
+                                    {branch.name}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    {getBranchStatusBadge(branchStatus)}
+                                    {isBranchActive && (
+                                      <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                                        Active
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              {/* Archive option - available for drafts and alternates owned by user */}
+                              {isOwnBranch && branchStatus !== 'archived' && branchStatus !== 'published' && onArchiveBranch && (
+                                <ContextMenuItem onClick={() => onArchiveBranch(branch.id)}>
+                                  <Archive className="w-4 h-4 mr-2" />
+                                  Archive
+                                </ContextMenuItem>
                               )}
-                              <span className="text-sm text-foreground truncate flex-1">
-                                {branch.name}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                {getBranchStatusBadge(branchStatus)}
-                                {isBranchActive && (
-                                  <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                                    Active
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Branch Actions (shown when active) */}
-                            {isBranchActive && branchStatus !== 'published' && (
-                              <div className="ml-5 mt-1 flex flex-wrap gap-1">
-                                {/* Delete Draft - only for draft status and own branches */}
-                                {branchStatus === 'draft' && isOwnBranch && onDeleteBranch && (
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        className="h-6 text-xs px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                      >
-                                        <Trash2 className="w-3 h-3 mr-1" />
-                                        Delete Draft
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Draft?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This will permanently delete "{branch.name}" and all its chapters. This action cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => onDeleteBranch(branch.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                )}
-                                
-                                {/* Continue Writing - for alternates owned by user */}
-                                {branchStatus === 'alternate' && isOwnBranch && onContinueBranch && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-6 text-xs px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onContinueBranch(branch.id);
-                                    }}
+                              {/* Delete option - only for own branches */}
+                              {isOwnBranch && !branch.is_main && onDeleteBranch && (
+                                <>
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem 
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => onDeleteBranch(branch.id)}
                                   >
-                                    <Play className="w-3 h-3 mr-1" />
-                                    Continue Writing
-                                  </Button>
-                                )}
-                                
-                                {/* Fork This - for alternates not owned by user */}
-                                {branchStatus === 'alternate' && !isOwnBranch && onForkFromBranch && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="h-6 text-xs px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const newName = `Fork of ${branch.name}`;
-                                      onForkFromBranch(newName, branch.id);
-                                    }}
-                                  >
-                                    <GitBranch className="w-3 h-3 mr-1" />
-                                    Fork This Alternate
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </ContextMenuItem>
+                                </>
+                              )}
+                              {/* Fork option - for alternates */}
+                              {branchStatus === 'alternate' && onForkFromBranch && (
+                                <>
+                                  <ContextMenuSeparator />
+                                  <ContextMenuItem onClick={() => onForkFromBranch(`${branch.name} (fork)`, branch.id)}>
+                                    <GitBranch className="w-4 h-4 mr-2" />
+                                    Fork from this
+                                  </ContextMenuItem>
+                                </>
+                              )}
+                              {/* Continue option - for own alternates */}
+                              {branchStatus === 'alternate' && isOwnBranch && onContinueBranch && (
+                                <ContextMenuItem onClick={() => onContinueBranch(branch.id)}>
+                                  <Play className="w-4 h-4 mr-2" />
+                                  Continue writing
+                                </ContextMenuItem>
+                              )}
+                            </ContextMenuContent>
+                          </ContextMenu>
                         );
                       })}
                     </div>

@@ -63,6 +63,7 @@ const WriterStudio = () => {
     forkFromBranch,
     continueBranch,
     deleteBranch,
+    archiveBranch,
     setBranchStatus,
     proposeBranch,
     switchToBranch,
@@ -179,6 +180,7 @@ const WriterStudio = () => {
           onForkFromBranch={forkFromBranch}
           onContinueBranch={continueBranch}
           onDeleteBranch={deleteBranch}
+          onArchiveBranch={archiveBranch}
           onSetBranchStatus={setBranchStatus}
           onProposeBranch={proposeBranch}
           onSwitchBranch={handleSwitchBranch}
