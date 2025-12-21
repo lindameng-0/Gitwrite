@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -13,12 +12,9 @@ import {
   CheckCircle,
   Clock,
   FilePlus,
-  Pencil,
-  Users
+  Pencil
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import CollaboratorRequestButton from './CollaboratorRequestButton';
-import { useDraftCollaboration } from '@/hooks/useDraftCollaboration';
 import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
 
 interface ChapterFirstSidebarProps {
