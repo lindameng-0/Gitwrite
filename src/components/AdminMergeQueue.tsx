@@ -25,7 +25,8 @@ import {
   ArrowRight,
   Layers,
   User,
-  Combine
+  Combine,
+  Archive
 } from 'lucide-react';
 import { useMergeRequests, MergeRequestWithDetails, ConflictGroup } from '@/hooks/useMergeRequests';
 import ConflictComparePanel from './ConflictComparePanel';
@@ -36,6 +37,7 @@ interface AdminMergeQueueProps {
   storyId: string;
   onLoadChaptersFromBranch: (branchId: string) => Promise<ChapterWithReviews[]>;
   onMergeChapter: (chapterId: string, targetBranchId: string, mode: string, mergeNote?: string) => Promise<boolean>;
+  onSetBranchStatus?: (branchId: string, status: 'alternate' | 'archived') => Promise<boolean>;
   mainBranchId?: string;
 }
 
@@ -43,6 +45,7 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
   storyId,
   onLoadChaptersFromBranch,
   onMergeChapter,
+  onSetBranchStatus,
   mainBranchId
 }) => {
   const {
@@ -82,6 +85,22 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     setIsProcessing(true);
     try {
       await reviewMergeRequest(request.id, 'approved', reviewNote);
+      setSelectedRequest(null);
+      setReviewNote('');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleKeepAsAlternate = async (request: MergeRequestWithDetails) => {
+    setIsProcessing(true);
+    try {
+      // Set branch status to alternate
+      if (onSetBranchStatus) {
+        await onSetBranchStatus(request.source_branch_id, 'alternate');
+      }
+      // Mark merge request as approved but kept as alternate
+      await reviewMergeRequest(request.id, 'approved', `Kept as alternate storyline: ${reviewNote || 'Preserved as parallel version'}`);
       setSelectedRequest(null);
       setReviewNote('');
     } finally {
@@ -302,8 +321,20 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
-                            Approve
+                            Publish
                           </Button>
+                          {onSetBranchStatus && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleKeepAsAlternate(request)}
+                              disabled={isProcessing}
+                              className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950/30"
+                            >
+                              <Archive className="w-4 h-4 mr-1" />
+                              Keep as Alternate
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

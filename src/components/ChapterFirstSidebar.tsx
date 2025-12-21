@@ -12,10 +12,25 @@ import {
   CheckCircle,
   Clock,
   FilePlus,
-  Pencil
+  Pencil,
+  Trash2,
+  GitBranch,
+  Play,
+  Archive
 } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { StoryBranchWithMeta, ChapterWithReviews } from '@/hooks/useStoryData';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import type { StoryBranchWithMeta, ChapterWithReviews, BranchStatus } from '@/hooks/useStoryData';
 
 interface ChapterFirstSidebarProps {
   branches: StoryBranchWithMeta[];
@@ -27,6 +42,9 @@ interface ChapterFirstSidebarProps {
   onSwitchBranch: (branchId: string) => void;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
+  onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
+  onContinueBranch?: (branchId: string) => Promise<string | null>;
+  onDeleteBranch?: (branchId: string) => Promise<boolean>;
   currentUserName?: string;
   isAdmin?: boolean;
 }
@@ -51,6 +69,19 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const getBranchStatusBadge = (status: BranchStatus) => {
+  switch (status) {
+    case 'proposed':
+      return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 text-xs">Under Review</Badge>;
+    case 'alternate':
+      return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 text-xs">Alternate</Badge>;
+    case 'archived':
+      return <Badge className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">Archived</Badge>;
+    default:
+      return null;
+  }
+};
+
 const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   branches,
   chapters,
@@ -61,6 +92,9 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   onSwitchBranch,
   onSwitchChapter,
   onForkFromChapter,
+  onForkFromBranch,
+  onContinueBranch,
+  onDeleteBranch,
   currentUserName,
   isAdmin = false
 }) => {
@@ -346,25 +380,116 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
                     <div className="ml-7 mt-1 space-y-1">
                       {chapterBranches.map((branch) => {
                         const isBranchActive = branch.id === activeBranch;
+                        const isOwnBranch = branch.author_name === currentUserName;
+                        const branchStatus = branch.status as BranchStatus;
+                        
+                        // Status-based styling
+                        let borderClass = 'border-transparent';
+                        if (isBranchActive) borderClass = 'border-accent';
+                        else if (branchStatus === 'proposed') borderClass = 'border-yellow-300 dark:border-yellow-700';
+                        else if (branchStatus === 'alternate') borderClass = 'border-purple-300 dark:border-purple-700 border-dashed';
                         
                         return (
-                          <div
-                            key={branch.id}
-                            className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all ${
-                              isBranchActive 
-                                ? 'bg-accent/50 border border-accent' 
-                                : 'hover:bg-muted/30 border border-transparent'
-                            }`}
-                            onClick={() => onSwitchBranch(branch.id)}
-                          >
-                            <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="text-sm text-foreground truncate flex-1">
-                              {branch.name}
-                            </span>
-                            {isBranchActive && (
-                              <Badge variant="secondary" className="text-xs h-5 px-1.5">
-                                Active
-                              </Badge>
+                          <div key={branch.id} className="group">
+                            <div
+                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all ${
+                                isBranchActive 
+                                  ? 'bg-accent/50' 
+                                  : branchStatus === 'alternate'
+                                    ? 'bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-900/30'
+                                    : 'hover:bg-muted/30'
+                              } border ${borderClass}`}
+                              onClick={() => onSwitchBranch(branch.id)}
+                            >
+                              {branchStatus === 'alternate' ? (
+                                <Archive className="w-3.5 h-3.5 text-purple-500" />
+                              ) : branchStatus === 'proposed' ? (
+                                <Clock className="w-3.5 h-3.5 text-yellow-500" />
+                              ) : (
+                                <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                              )}
+                              <span className="text-sm text-foreground truncate flex-1">
+                                {branch.name}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {getBranchStatusBadge(branchStatus)}
+                                {isBranchActive && (
+                                  <Badge variant="secondary" className="text-xs h-5 px-1.5">
+                                    Active
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Branch Actions (shown when active) */}
+                            {isBranchActive && branchStatus !== 'published' && (
+                              <div className="ml-5 mt-1 flex flex-wrap gap-1">
+                                {/* Delete Draft - only for draft status and own branches */}
+                                {branchStatus === 'draft' && isOwnBranch && onDeleteBranch && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-6 text-xs px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                      >
+                                        <Trash2 className="w-3 h-3 mr-1" />
+                                        Delete Draft
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Draft?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This will permanently delete "{branch.name}" and all its chapters. This action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => onDeleteBranch(branch.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                                
+                                {/* Continue Writing - for alternates owned by user */}
+                                {branchStatus === 'alternate' && isOwnBranch && onContinueBranch && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-6 text-xs px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onContinueBranch(branch.id);
+                                    }}
+                                  >
+                                    <Play className="w-3 h-3 mr-1" />
+                                    Continue Writing
+                                  </Button>
+                                )}
+                                
+                                {/* Fork This - for alternates not owned by user */}
+                                {branchStatus === 'alternate' && !isOwnBranch && onForkFromBranch && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    className="h-6 text-xs px-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newName = `Fork of ${branch.name}`;
+                                      onForkFromBranch(newName, branch.id);
+                                    }}
+                                  >
+                                    <GitBranch className="w-3 h-3 mr-1" />
+                                    Fork This Alternate
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         );
