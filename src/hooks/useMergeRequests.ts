@@ -91,8 +91,9 @@ export const useMergeRequests = (storyId?: string) => {
   useEffect(() => {
     if (!storyId) return;
 
+    const channelName = `merge-requests-${storyId}-${Date.now()}`;
     const channel = supabase
-      .channel('merge-requests-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
