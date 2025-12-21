@@ -241,6 +241,69 @@ export type Database = {
         }
         Relationships: []
       }
+      merge_requests: {
+        Row: {
+          author_name: string
+          chapter_title: string | null
+          conflicting_requests: string[] | null
+          created_at: string | null
+          has_conflicts: boolean | null
+          id: string
+          priority: number | null
+          requested_at: string | null
+          requested_by: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_branch_id: string
+          source_chapter_id: string | null
+          status: string | null
+          story_id: string
+          target_branch_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          author_name: string
+          chapter_title?: string | null
+          conflicting_requests?: string[] | null
+          created_at?: string | null
+          has_conflicts?: boolean | null
+          id?: string
+          priority?: number | null
+          requested_at?: string | null
+          requested_by: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_branch_id: string
+          source_chapter_id?: string | null
+          status?: string | null
+          story_id: string
+          target_branch_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          author_name?: string
+          chapter_title?: string | null
+          conflicting_requests?: string[] | null
+          created_at?: string | null
+          has_conflicts?: boolean | null
+          id?: string
+          priority?: number | null
+          requested_at?: string | null
+          requested_by?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_branch_id?: string
+          source_chapter_id?: string | null
+          status?: string | null
+          story_id?: string
+          target_branch_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -551,6 +614,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      detect_merge_conflicts: {
+        Args: { p_merge_request_id: string }
+        Returns: {
+          author_name: string
+          branch_name: string
+          chapter_title: string
+          conflicting_branch_id: string
+          conflicting_request_id: string
+          fork_point_chapter_id: string
+        }[]
+      }
       is_draft_collaborator: { Args: { branch_uuid: string }; Returns: boolean }
       is_draft_owner: { Args: { branch_uuid: string }; Returns: boolean }
       is_studio_member: { Args: { studio_uuid: string }; Returns: boolean }

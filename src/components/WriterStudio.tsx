@@ -181,6 +181,7 @@ const WriterStudio = () => {
           onSaveBranchPosition={saveBranchPosition}
           isAdmin={isInAdminMode}
           currentUserName={currentUserName}
+          storyId={story?.id}
         />
       </div>
       
