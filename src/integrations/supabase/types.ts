@@ -422,6 +422,7 @@ export type Database = {
           author_name: string
           content: string
           created_at: string
+          deleted_at: string | null
           fork_point_chapter_id: string | null
           fork_point_order: number | null
           id: string
@@ -441,6 +442,7 @@ export type Database = {
           author_name?: string
           content?: string
           created_at?: string
+          deleted_at?: string | null
           fork_point_chapter_id?: string | null
           fork_point_order?: number | null
           id?: string
@@ -460,6 +462,7 @@ export type Database = {
           author_name?: string
           content?: string
           created_at?: string
+          deleted_at?: string | null
           fork_point_chapter_id?: string | null
           fork_point_order?: number | null
           id?: string

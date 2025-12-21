@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { Layers, Clock, BarChart3, Lock, ArrowRight, Send } from 'lucide-react';
+import { Layers, BarChart3, Lock, ArrowRight, Send } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import ChapterFirstSidebar from './ChapterFirstSidebar';
 import StoryEditorContent from './StoryEditorContent';
-import SavePointsPanel from './SavePointsPanel';
 import MergeInterface from './MergeInterface';
 import WriterProgressPanel from './WriterProgressPanel';
 import MergeRequestButton from './MergeRequestButton';
@@ -29,6 +28,7 @@ interface StoryEditorProps {
   onForkFromBranch?: (name: string, sourceBranchId: string) => Promise<string | null>;
   onContinueBranch?: (branchId: string) => Promise<string | null>;
   onDeleteBranch?: (branchId: string) => Promise<boolean>;
+  onArchiveBranch?: (branchId: string) => Promise<boolean>;
   onProposeBranch?: (branchId: string) => Promise<boolean>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
@@ -61,6 +61,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   onForkFromBranch,
   onContinueBranch,
   onDeleteBranch,
+  onArchiveBranch,
   onProposeBranch,
   onSwitchBranch,
   onSwitchChapter,
@@ -124,6 +125,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
             onForkFromBranch={onForkFromBranch}
             onContinueBranch={onContinueBranch}
             onDeleteBranch={onDeleteBranch}
+            onArchiveBranch={onArchiveBranch}
             currentUserName={currentUserName}
             isAdmin={isAdmin}
           />
@@ -191,14 +193,10 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
       <ResizablePanel defaultSize={defaultLayout[2]} minSize={15} className="h-full min-h-0 overflow-hidden">
         <div className="h-full min-h-0 bg-background flex flex-col overflow-hidden">
           {isAdmin ? (
-            <Tabs defaultValue="savepoints" className="h-full min-h-0 flex flex-col overflow-hidden">
+            <Tabs defaultValue="merge" className="h-full min-h-0 flex flex-col overflow-hidden">
               <div className="bg-background border-b border-border px-4 py-2 shadow-sm flex-shrink-0">
                 <TabsList>
-                  <TabsTrigger value="savepoints" className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Save Points
-                  </TabsTrigger>
-              <TabsTrigger value="merge" className="flex items-center gap-2">
+                  <TabsTrigger value="merge" className="flex items-center gap-2">
                     <Layers className="w-4 h-4" />
                     Publish
                   </TabsTrigger>
@@ -206,14 +204,6 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
               </div>
               
               <div className="flex-1 min-h-0 overflow-y-auto scroll-stable">
-                <TabsContent value="savepoints" className="h-full m-0 p-4">
-                  <SavePointsPanel
-                    savePoints={savePoints}
-                    onCreateSavePoint={onCreateSavePoint}
-                    onRestoreSavePoint={onRestoreSavePoint}
-                  />
-                </TabsContent>
-                
                 <TabsContent value="merge" className="h-full m-0 p-4">
                   <MergeInterface
                     branches={branches}
@@ -237,10 +227,6 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                   <TabsTrigger value="submit" className="flex items-center gap-2">
                     <Send className="w-4 h-4" />
                     Submit
-                  </TabsTrigger>
-                  <TabsTrigger value="savepoints" className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    Save Points
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -280,13 +266,6 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
                       </div>
                     )}
                   </div>
-                </TabsContent>
-                
-                <TabsContent value="savepoints" className="h-full m-0 p-4">
-                  <SavePointsPanel
-                    savePoints={savePoints}
-                    onCreateSavePoint={onCreateSavePoint}
-                  />
                 </TabsContent>
               </div>
             </Tabs>
