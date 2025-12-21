@@ -52,9 +52,61 @@ export type Database = {
           },
         ]
       }
+      chapter_versions: {
+        Row: {
+          author_name: string
+          chapter_id: string
+          content: string
+          created_at: string
+          id: string
+          is_current: boolean
+          merge_note: string | null
+          merged_from_branch_id: string | null
+          version_number: number
+        }
+        Insert: {
+          author_name?: string
+          chapter_id: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          merge_note?: string | null
+          merged_from_branch_id?: string | null
+          version_number?: number
+        }
+        Update: {
+          author_name?: string
+          chapter_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          merge_note?: string | null
+          merged_from_branch_id?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_versions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_versions_merged_from_branch_id_fkey"
+            columns: ["merged_from_branch_id"]
+            isOneToOne: false
+            referencedRelation: "story_branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           author_name: string
+          branch_count: number
           branch_id: string
           chapter_order: number
           content: string
@@ -67,6 +119,7 @@ export type Database = {
         }
         Insert: {
           author_name?: string
+          branch_count?: number
           branch_id: string
           chapter_order: number
           content?: string
@@ -79,6 +132,7 @@ export type Database = {
         }
         Update: {
           author_name?: string
+          branch_count?: number
           branch_id?: string
           chapter_order?: number
           content?: string
@@ -224,9 +278,12 @@ export type Database = {
           author_name: string
           content: string
           created_at: string
+          fork_point_chapter_id: string | null
+          fork_point_order: number | null
           id: string
           is_active: boolean
           is_main: boolean
+          is_protected: boolean
           name: string
           parent_branch_id: string | null
           position_x: number | null
@@ -239,9 +296,12 @@ export type Database = {
           author_name?: string
           content?: string
           created_at?: string
+          fork_point_chapter_id?: string | null
+          fork_point_order?: number | null
           id?: string
           is_active?: boolean
           is_main?: boolean
+          is_protected?: boolean
           name: string
           parent_branch_id?: string | null
           position_x?: number | null
@@ -254,9 +314,12 @@ export type Database = {
           author_name?: string
           content?: string
           created_at?: string
+          fork_point_chapter_id?: string | null
+          fork_point_order?: number | null
           id?: string
           is_active?: boolean
           is_main?: boolean
+          is_protected?: boolean
           name?: string
           parent_branch_id?: string | null
           position_x?: number | null
@@ -266,6 +329,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "story_branches_fork_point_chapter_id_fkey"
+            columns: ["fork_point_chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "story_branches_parent_branch_id_fkey"
             columns: ["parent_branch_id"]

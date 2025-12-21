@@ -24,6 +24,7 @@ interface StoryBranchStudioProps {
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
   onCreateBranch: (name: string, parentBranchId?: string) => Promise<string | null>;
+  onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
   onSwitchBranch: (branchId: string) => Promise<void>;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onRestoreSavePoint: (savePointId: string) => Promise<boolean>;
@@ -49,6 +50,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   onSubmitChapterForReview,
   onReviewChapter,
   onCreateBranch,
+  onForkFromChapter,
   onSwitchBranch,
   onSwitchChapter,
   onRestoreSavePoint,
