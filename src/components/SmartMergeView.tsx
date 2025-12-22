@@ -934,11 +934,13 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
         </div>
 
         {/* Blocks */}
-        <ScrollArea className="flex-1">
-          <div className="space-y-3 pr-4">
-            {blocks.map((block, index) => renderBlock(block, index))}
-          </div>
-        </ScrollArea>
+        <div className="flex-1 min-h-0">
+          <ScrollArea className="h-full">
+            <div className="space-y-3 pr-4 pb-4">
+              {blocks.map((block, index) => renderBlock(block, index))}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
     </TooltipProvider>
   );

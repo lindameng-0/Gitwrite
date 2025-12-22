@@ -249,7 +249,7 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
         </div>
 
         {/* Smart Merge View */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
           {versionA && versionB ? (
             <SmartMergeView
               versionA={versionA}
