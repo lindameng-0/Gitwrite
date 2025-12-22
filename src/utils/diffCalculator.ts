@@ -35,8 +35,8 @@ function htmlToParagraphs(html: string): string[] {
     .filter(p => p.length > 0);
 }
 
-// Calculate similarity between two strings using Levenshtein distance
-function calculateStringSimilarity(str1: string, str2: string): number {
+// Calculate similarity between two strings using word-based Jaccard index
+export function calculateStringSimilarity(str1: string, str2: string): number {
   if (str1 === str2) return 1;
   if (!str1.length || !str2.length) return 0;
 
@@ -49,8 +49,10 @@ function calculateStringSimilarity(str1: string, str2: string): number {
   }
 
   // Use word-based comparison for better accuracy
-  const words1 = str1.toLowerCase().split(/\s+/);
-  const words2 = str2.toLowerCase().split(/\s+/);
+  const words1 = str1.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const words2 = str2.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
   
   const set1 = new Set(words1);
   const set2 = new Set(words2);
