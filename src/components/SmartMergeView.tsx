@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   ChevronDown,
   ChevronUp,
@@ -20,7 +23,10 @@ import {
   Keyboard,
   FileText,
   Pencil,
-  Save
+  Save,
+  Sparkles,
+  Loader2,
+  Wand2
 } from 'lucide-react';
 import {
   calculateSmartMerge,
@@ -36,6 +42,14 @@ interface VersionInfo {
   author: string;
   content: string;
   wordCount: number;
+}
+
+interface AIConflictAnalysis {
+  blockId: string;
+  classification: 'style' | 'addition' | 'rewrite' | 'minor';
+  recommendation: 'a' | 'b' | 'both' | 'manual';
+  confidence: number;
+  reason: string;
 }
 
 interface SmartMergeViewProps {
@@ -55,8 +69,12 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
   const [currentConflictIndex, setCurrentConflictIndex] = useState(0);
   const [expandedUnchanged, setExpandedUnchanged] = useState<Set<string>>(new Set());
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(true);
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState<AIConflictAnalysis[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Calculate smart merge on version change
   useEffect(() => {
@@ -64,7 +82,53 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
     setBlocks(result.blocks);
     setCurrentConflictIndex(0);
     setExpandedUnchanged(new Set());
+    setAiAnalysis([]);
+    setAiError(null);
   }, [versionA.content, versionB.content, unchangedThreshold]);
+
+  // Trigger AI analysis when blocks change
+  useEffect(() => {
+    const conflictBlocks = blocks.filter(b => 
+      (b.type === 'conflict' || b.type === 'added-a' || b.type === 'added-b') && !b.resolved
+    );
+    
+    if (conflictBlocks.length > 0 && aiAnalysis.length === 0 && !isAnalyzing) {
+      analyzeConflicts(conflictBlocks);
+    }
+  }, [blocks]);
+
+  // Analyze conflicts with AI
+  const analyzeConflicts = async (conflictBlocks: MergeBlock[]) => {
+    setIsAnalyzing(true);
+    setAiError(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-conflicts', {
+        body: {
+          conflicts: conflictBlocks.map(b => ({
+            id: b.id,
+            type: b.type,
+            contentA: b.contentA,
+            contentB: b.contentB,
+            similarity: b.similarity,
+          })),
+          versionAName: versionA.name,
+          versionBName: versionB.name,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data?.analyses) {
+        setAiAnalysis(data.analyses);
+      }
+    } catch (err: any) {
+      console.error('AI analysis error:', err);
+      setAiError(err.message || 'AI analysis failed');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   // Update parent whenever blocks change
   useEffect(() => {
@@ -72,12 +136,41 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
     onContentChange(content);
   }, [blocks, onContentChange]);
 
+  // Get AI analysis for a block
+  const getBlockAnalysis = useCallback((blockId: string) => {
+    return aiAnalysis.find(a => a.blockId === blockId);
+  }, [aiAnalysis]);
+
+  // Apply high-confidence AI suggestions
+  const applyHighConfidenceSuggestions = useCallback(() => {
+    const highConfidence = aiAnalysis.filter(a => a.confidence >= 0.8 && a.recommendation !== 'manual');
+    let applied = 0;
+    
+    setBlocks(prev => prev.map(b => {
+      if (b.resolved) return b;
+      const analysis = highConfidence.find(a => a.blockId === b.id);
+      if (!analysis) return b;
+      
+      applied++;
+      return { ...b, resolved: true, resolution: analysis.recommendation as 'a' | 'b' | 'both' };
+    }));
+    
+    if (applied > 0) {
+      toast.success(`Applied ${applied} AI suggestions`);
+    }
+  }, [aiAnalysis]);
+
   // Get unresolved conflict indices
   const unresolvedConflicts = useMemo(() => {
     return blocks
       .map((b, i) => ({ block: b, index: i }))
       .filter(({ block }) => !block.resolved && (block.type === 'conflict' || block.type === 'added-a' || block.type === 'added-b'));
   }, [blocks]);
+
+  // High confidence count
+  const highConfidenceCount = useMemo(() => {
+    return aiAnalysis.filter(a => a.confidence >= 0.8 && a.recommendation !== 'manual').length;
+  }, [aiAnalysis]);
 
   // Stats
   const stats = useMemo(() => {
@@ -269,7 +362,7 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
     const words = isSource ? diff.sourceWords : diff.targetWords;
     
     return (
-      <p className="text-sm leading-relaxed">
+      <p className="text-base leading-relaxed">
         {words.map((w, i) => (
           <span
             key={i}
@@ -279,6 +372,21 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
           </span>
         ))}
       </p>
+    );
+  };
+
+  // Get classification badge
+  const ClassificationBadge = ({ classification }: { classification: string }) => {
+    const styles: Record<string, string> = {
+      style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+      addition: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+      rewrite: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+      minor: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+    };
+    return (
+      <Badge variant="outline" className={`text-xs ${styles[classification] || ''}`}>
+        {classification}
+      </Badge>
     );
   };
 
@@ -427,6 +535,8 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
         );
       }
       
+      const analysis = getBlockAnalysis(block.id);
+      
       return (
         <Card 
           key={block.id} 
@@ -441,6 +551,27 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
                 {Math.round(block.similarity * 100)}% similar
               </Badge>
             )}
+            {analysis && (
+              <>
+                <ClassificationBadge classification={analysis.classification} />
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs cursor-help ${analysis.confidence >= 0.8 ? 'bg-green-100 dark:bg-green-900/30' : ''}`}
+                      >
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        Use {analysis.recommendation.toUpperCase()} ({Math.round(analysis.confidence * 100)}%)
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs">{analysis.reason}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </>
+            )}
             {isCurrentConflict && (
               <Badge className="bg-amber-500 text-white ml-auto">Current</Badge>
             )}
@@ -448,20 +579,20 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
           
           <div className="grid grid-cols-2 gap-4 mb-3">
             {/* Version A */}
-            <Card className="p-3 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 min-h-[180px]">
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-blue-600 text-white text-xs">A</Badge>
-                <span className="text-xs font-medium">{versionA.name}</span>
+                <span className="text-sm font-medium">{versionA.name}</span>
                 <span className="text-xs text-muted-foreground ml-auto">{wordCountA} words</span>
               </div>
               <WordDiffHighlight text={block.contentA || ''} isSource={true} otherText={block.contentB || ''} />
             </Card>
             
             {/* Version B */}
-            <Card className="p-3 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800">
+            <Card className="p-4 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 min-h-[180px]">
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-purple-600 text-white text-xs">B</Badge>
-                <span className="text-xs font-medium">{versionB.name}</span>
+                <span className="text-sm font-medium">{versionB.name}</span>
                 <span className="text-xs text-muted-foreground ml-auto">{wordCountB} words</span>
               </div>
               <WordDiffHighlight text={block.contentB || ''} isSource={false} otherText={block.contentA || ''} />
@@ -471,28 +602,31 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
           <div className="flex items-center gap-2">
             <Button 
               size="sm" 
-              variant="outline" 
-              className="flex-1 border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+              variant={analysis?.recommendation === 'a' ? 'default' : 'outline'}
+              className={`flex-1 ${analysis?.recommendation !== 'a' ? 'border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50' : ''}`}
               onClick={() => resolveBlock(block.id, 'a')}
             >
+              {analysis?.recommendation === 'a' && <Sparkles className="w-3 h-3 mr-1" />}
               <Check className="w-3 h-3 mr-1" /> Use A
               <kbd className="ml-1 text-xs bg-muted px-1 rounded">1</kbd>
             </Button>
             <Button 
               size="sm" 
-              variant="outline" 
-              className="flex-1 border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50"
+              variant={analysis?.recommendation === 'b' ? 'default' : 'outline'}
+              className={`flex-1 ${analysis?.recommendation !== 'b' ? 'border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/50' : ''}`}
               onClick={() => resolveBlock(block.id, 'b')}
             >
+              {analysis?.recommendation === 'b' && <Sparkles className="w-3 h-3 mr-1" />}
               <Check className="w-3 h-3 mr-1" /> Use B
               <kbd className="ml-1 text-xs bg-muted px-1 rounded">2</kbd>
             </Button>
             <Button 
               size="sm" 
-              variant="outline" 
+              variant={analysis?.recommendation === 'both' ? 'default' : 'outline'}
               className="flex-1"
               onClick={() => resolveBlock(block.id, 'both')}
             >
+              {analysis?.recommendation === 'both' && <Sparkles className="w-3 h-3 mr-1" />}
               <Layers className="w-3 h-3 mr-1" /> Both
               <kbd className="ml-1 text-xs bg-muted px-1 rounded">3</kbd>
             </Button>
@@ -658,111 +792,155 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Summary Header */}
-      <Card className="p-4 mb-4 bg-gradient-to-r from-muted/50 to-muted/30">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold flex items-center gap-2">
-            <FileText className="w-4 h-4" />
-            Merge Summary
-          </h3>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setShowKeyboardHelp(prev => !prev)}
-              className="text-xs"
-            >
-              <Keyboard className="w-3 h-3 mr-1" />
-              Shortcuts
-            </Button>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-4 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Check className="w-4 h-4 text-green-600" />
-            <span className="text-muted-foreground">{stats.unchanged} unchanged</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600" />
-            <span className="text-muted-foreground">
-              {stats.resolvedConflicts}/{stats.conflicts} conflicts
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-blue-600" />
-            <span className="text-muted-foreground">{stats.additionsA} new in A</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Plus className="w-4 h-4 text-purple-600" />
-            <span className="text-muted-foreground">{stats.additionsB} new in B</span>
-          </div>
-        </div>
-
-        {stats.totalNeedingDecision > 0 && (
-          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
-            <div className="text-sm">
-              <span className="font-medium">{stats.totalResolved}</span>
-              <span className="text-muted-foreground"> of </span>
-              <span className="font-medium">{stats.totalNeedingDecision}</span>
-              <span className="text-muted-foreground"> decisions made</span>
-            </div>
+    <TooltipProvider>
+      <div className="flex flex-col h-full">
+        {/* Summary Header - Collapsible */}
+        <Collapsible open={!headerCollapsed} onOpenChange={(open) => setHeaderCollapsed(!open)}>
+          <Card className="p-3 mb-3 bg-gradient-to-r from-muted/50 to-muted/30">
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer hover:bg-muted/20 -m-1 p-1 rounded">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-medium text-sm">
+                    {stats.totalResolved}/{stats.totalNeedingDecision} resolved
+                  </span>
+                  {isAnalyzing && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Analyzing...
+                    </Badge>
+                  )}
+                  {aiAnalysis.length > 0 && !isAnalyzing && (
+                    <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/30">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI ready
+                    </Badge>
+                  )}
+                  {aiError && (
+                    <Badge variant="destructive" className="text-xs">
+                      AI unavailable
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {highConfidenceCount > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyHighConfidenceSuggestions();
+                      }}
+                    >
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      Apply {highConfidenceCount} AI suggestions
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowKeyboardHelp(prev => !prev);
+                    }}
+                    className="text-xs h-7"
+                  >
+                    <Keyboard className="w-3 h-3" />
+                  </Button>
+                  {headerCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </div>
+              </div>
+            </CollapsibleTrigger>
             
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={jumpToPrevConflict} disabled={unresolvedConflicts.length === 0}>
-                <ArrowUp className="w-3 h-3 mr-1" /> Prev
-              </Button>
-              <Button size="sm" variant="outline" onClick={jumpToNextConflict} disabled={unresolvedConflicts.length === 0}>
-                Next <ArrowDown className="w-3 h-3 ml-1" />
-              </Button>
-              <Button size="sm" variant="secondary" onClick={acceptAllFromA}>
-                Accept all A
-              </Button>
-              <Button size="sm" variant="secondary" onClick={acceptAllFromB}>
-                Accept all B
-              </Button>
+            <CollapsibleContent>
+              <div className="grid grid-cols-4 gap-4 text-sm mt-3 pt-3 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-muted-foreground">{stats.unchanged} unchanged</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span className="text-muted-foreground">
+                    {stats.resolvedConflicts}/{stats.conflicts} conflicts
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <span className="text-muted-foreground">{stats.additionsA} new in A</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4 text-purple-600" />
+                  <span className="text-muted-foreground">{stats.additionsB} new in B</span>
+                </div>
+              </div>
+
+              {stats.totalNeedingDecision > 0 && (
+                <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                  <div className="text-sm">
+                    <span className="font-medium">{stats.totalResolved}</span>
+                    <span className="text-muted-foreground"> of </span>
+                    <span className="font-medium">{stats.totalNeedingDecision}</span>
+                    <span className="text-muted-foreground"> decisions made</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={jumpToPrevConflict} disabled={unresolvedConflicts.length === 0}>
+                      <ArrowUp className="w-3 h-3 mr-1" /> Prev
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={jumpToNextConflict} disabled={unresolvedConflicts.length === 0}>
+                      Next <ArrowDown className="w-3 h-3 ml-1" />
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={acceptAllFromA}>
+                      Accept all A
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={acceptAllFromB}>
+                      Accept all B
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* Keyboard Help */}
+        {showKeyboardHelp && (
+          <Card className="p-3 mb-3 bg-muted/50">
+            <h4 className="text-sm font-medium mb-2">Keyboard Shortcuts</h4>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><kbd className="bg-background px-1 rounded">J</kbd> or <kbd className="bg-background px-1 rounded">↓</kbd> — Next conflict</div>
+              <div><kbd className="bg-background px-1 rounded">K</kbd> or <kbd className="bg-background px-1 rounded">↑</kbd> — Previous conflict</div>
+              <div><kbd className="bg-background px-1 rounded">1</kbd> — Select version A</div>
+              <div><kbd className="bg-background px-1 rounded">2</kbd> — Select version B</div>
+              <div><kbd className="bg-background px-1 rounded">3</kbd> — Use both versions</div>
+              <div><kbd className="bg-background px-1 rounded">E</kbd> — Edit current conflict</div>
+              <div><kbd className="bg-background px-1 rounded">S</kbd> — Skip / exclude</div>
+              <div><kbd className="bg-background px-1 rounded">Esc</kbd> — Cancel editing</div>
+              <div><kbd className="bg-background px-1 rounded">Shift+A</kbd> — Accept all from A</div>
+              <div><kbd className="bg-background px-1 rounded">Shift+B</kbd> — Accept all from B</div>
             </div>
-          </div>
+          </Card>
         )}
-      </Card>
 
-      {/* Keyboard Help */}
-      {showKeyboardHelp && (
-        <Card className="p-3 mb-4 bg-muted/50">
-          <h4 className="text-sm font-medium mb-2">Keyboard Shortcuts</h4>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div><kbd className="bg-background px-1 rounded">J</kbd> or <kbd className="bg-background px-1 rounded">↓</kbd> — Next conflict</div>
-            <div><kbd className="bg-background px-1 rounded">K</kbd> or <kbd className="bg-background px-1 rounded">↑</kbd> — Previous conflict</div>
-            <div><kbd className="bg-background px-1 rounded">1</kbd> — Select version A</div>
-            <div><kbd className="bg-background px-1 rounded">2</kbd> — Select version B</div>
-            <div><kbd className="bg-background px-1 rounded">3</kbd> — Use both versions</div>
-            <div><kbd className="bg-background px-1 rounded">E</kbd> — Edit current conflict</div>
-            <div><kbd className="bg-background px-1 rounded">S</kbd> — Skip / exclude</div>
-            <div><kbd className="bg-background px-1 rounded">Esc</kbd> — Cancel editing</div>
-            <div><kbd className="bg-background px-1 rounded">Shift+A</kbd> — Accept all from A</div>
-            <div><kbd className="bg-background px-1 rounded">Shift+B</kbd> — Accept all from B</div>
-          </div>
-        </Card>
-      )}
-
-      {/* Version Labels */}
-      <div className="flex gap-4 mb-3">
-        <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 border-blue-300">
-          A: {versionA.name} <span className="text-muted-foreground ml-1">by {versionA.author}</span>
-        </Badge>
-        <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 border-purple-300">
-          B: {versionB.name} <span className="text-muted-foreground ml-1">by {versionB.author}</span>
-        </Badge>
-      </div>
-
-      {/* Blocks */}
-      <ScrollArea className="flex-1">
-        <div className="space-y-3 pr-4">
-          {blocks.map((block, index) => renderBlock(block, index))}
+        {/* Version Labels - Compact */}
+        <div className="flex gap-2 mb-2">
+          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 border-blue-300 text-xs">
+            A: {versionA.name}
+          </Badge>
+          <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 border-purple-300 text-xs">
+            B: {versionB.name}
+          </Badge>
         </div>
-      </ScrollArea>
-    </div>
+
+        {/* Blocks */}
+        <ScrollArea className="flex-1">
+          <div className="space-y-3 pr-4">
+            {blocks.map((block, index) => renderBlock(block, index))}
+          </div>
+        </ScrollArea>
+      </div>
+    </TooltipProvider>
   );
 };
 
