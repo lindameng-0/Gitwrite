@@ -28,11 +28,15 @@ import {
   Combine,
   Archive,
   Sparkles,
-  Loader2
+  Loader2,
+  GitCompare,
+  Wand2
 } from 'lucide-react';
 import { useMergeRequests, MergeRequestWithDetails, ConflictGroup } from '@/hooks/useMergeRequests';
 import ConflictComparePanel from './ConflictComparePanel';
 import FusionMergeDialog from './FusionMergeDialog';
+import AIMergePlanDialog from './AIMergePlanDialog';
+import VisualDiffMergeDialog from './VisualDiffMergeDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { ChapterWithReviews } from '@/hooks/useStoryData';
@@ -80,7 +84,18 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     versions: []
   });
   const [summaries, setSummaries] = useState<Record<string, { summary: string; loading: boolean; error?: string }>>({});
-
+  const [aiMergePlanDialog, setAiMergePlanDialog] = useState<{
+    isOpen: boolean;
+    request: MergeRequestWithDetails | null;
+    sourceContent: string;
+    targetContent: string;
+  }>({ isOpen: false, request: null, sourceContent: '', targetContent: '' });
+  const [visualDiffDialog, setVisualDiffDialog] = useState<{
+    isOpen: boolean;
+    request: MergeRequestWithDetails | null;
+    sourceContent: string;
+    targetContent: string;
+  }>({ isOpen: false, request: null, sourceContent: '', targetContent: '' });
   const conflictGroups = getConflictGroups();
   const pendingRequests = mergeRequests.filter(r => r.status === 'pending');
   const underReviewRequests = mergeRequests.filter(r => r.status === 'under_review');
@@ -207,6 +222,74 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
     // Here you would typically create the fused chapter in the main branch
     // For now, we'll just close the dialog - the parent component should handle the actual merge
     setFusionDialog({ isOpen: false, versions: [] });
+  };
+
+  const handleOpenAIMergePlan = async (request: MergeRequestWithDetails) => {
+    // Load source and target content
+    const sourceChapters = await onLoadChaptersFromBranch(request.source_branch_id);
+    const sourceContent = sourceChapters
+      .filter(c => c.content && c.content.trim().length > 0)
+      .map(c => c.content)
+      .join('\n\n');
+
+    // Load main branch content for comparison
+    let targetContent = '';
+    if (mainBranchId) {
+      const targetChapters = await onLoadChaptersFromBranch(mainBranchId);
+      targetContent = targetChapters
+        .filter(c => c.content && c.content.trim().length > 0)
+        .map(c => c.content)
+        .join('\n\n');
+    }
+
+    setAiMergePlanDialog({
+      isOpen: true,
+      request,
+      sourceContent,
+      targetContent: targetContent || '<p>No existing content in main branch</p>'
+    });
+  };
+
+  const handleOpenVisualDiff = async (request: MergeRequestWithDetails) => {
+    // Load source and target content
+    const sourceChapters = await onLoadChaptersFromBranch(request.source_branch_id);
+    const sourceContent = sourceChapters
+      .filter(c => c.content && c.content.trim().length > 0)
+      .map(c => c.content)
+      .join('\n\n');
+
+    // Load main branch content for comparison
+    let targetContent = '';
+    if (mainBranchId) {
+      const targetChapters = await onLoadChaptersFromBranch(mainBranchId);
+      targetContent = targetChapters
+        .filter(c => c.content && c.content.trim().length > 0)
+        .map(c => c.content)
+        .join('\n\n');
+    }
+
+    setVisualDiffDialog({
+      isOpen: true,
+      request,
+      sourceContent,
+      targetContent: targetContent || ''
+    });
+  };
+
+  const handleMergePlanComplete = async (mergedContent: string, note: string) => {
+    if (!aiMergePlanDialog.request) return;
+    
+    // Approve the merge request with the merged content
+    await reviewMergeRequest(aiMergePlanDialog.request.id, 'approved', note);
+    setAiMergePlanDialog({ isOpen: false, request: null, sourceContent: '', targetContent: '' });
+  };
+
+  const handleVisualDiffComplete = async (mergedContent: string, note: string) => {
+    if (!visualDiffDialog.request) return;
+    
+    // Approve the merge request with the merged content
+    await reviewMergeRequest(visualDiffDialog.request.id, 'approved', note);
+    setVisualDiffDialog({ isOpen: false, request: null, sourceContent: '', targetContent: '' });
   };
 
   const getStatusBadge = (status: string) => {
@@ -340,13 +423,31 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); handleOpenAIMergePlan(request); }}
+                          className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300"
+                          title="AI Merge Plan"
+                        >
+                          <Wand2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); handleOpenVisualDiff(request); }}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-300"
+                          title="Visual Compare"
+                        >
+                          <GitCompare className="w-4 h-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={(e) => { e.stopPropagation(); generateSummary(request); }}
                           disabled={summaries[request.id]?.loading}
-                          className="border-violet-300 text-violet-700 hover:bg-violet-50 dark:border-violet-700 dark:text-violet-300 dark:hover:bg-violet-950/30"
+                          title="AI Summary"
                         >
                           {summaries[request.id]?.loading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -358,6 +459,7 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
                           size="sm"
                           variant="outline"
                           onClick={(e) => { e.stopPropagation(); handlePreview(request); }}
+                          title="Preview"
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -549,6 +651,38 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
         onFusionComplete={handleFusionComplete}
         chapterTitle={fusionDialog.versions[0]?.request.chapter_title || undefined}
       />
+
+      {/* AI Merge Plan Dialog */}
+      {aiMergePlanDialog.request && (
+        <AIMergePlanDialog
+          isOpen={aiMergePlanDialog.isOpen}
+          onClose={() => setAiMergePlanDialog({ isOpen: false, request: null, sourceContent: '', targetContent: '' })}
+          sourceContent={aiMergePlanDialog.sourceContent}
+          targetContent={aiMergePlanDialog.targetContent}
+          sourceAuthor={aiMergePlanDialog.request.author_name}
+          targetAuthor="Main Branch"
+          sourceBranch={aiMergePlanDialog.request.source_branch?.name || 'Unknown'}
+          targetBranch="Main"
+          chapterTitle={aiMergePlanDialog.request.chapter_title || undefined}
+          onMergeComplete={handleMergePlanComplete}
+        />
+      )}
+
+      {/* Visual Diff Dialog */}
+      {visualDiffDialog.request && (
+        <VisualDiffMergeDialog
+          isOpen={visualDiffDialog.isOpen}
+          onClose={() => setVisualDiffDialog({ isOpen: false, request: null, sourceContent: '', targetContent: '' })}
+          sourceContent={visualDiffDialog.sourceContent}
+          targetContent={visualDiffDialog.targetContent}
+          sourceAuthor={visualDiffDialog.request.author_name}
+          targetAuthor="Main Branch"
+          sourceBranch={visualDiffDialog.request.source_branch?.name || 'Unknown'}
+          targetBranch="Main"
+          chapterTitle={visualDiffDialog.request.chapter_title || undefined}
+          onMergeComplete={handleVisualDiffComplete}
+        />
+      )}
     </div>
   );
 };
