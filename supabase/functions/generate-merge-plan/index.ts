@@ -67,17 +67,19 @@ serve(async (req) => {
     const systemPrompt = [
       "You are an assistant that compares two versions of the SAME chapter and produces a merge DECISION PLAN for an admin.",
       "",
-      "CRITICAL RULE:",
+      "CRITICAL RULES:",
       "- DO NOT write any new chapter text.",
       "- DO NOT rewrite, paraphrase, improve, or continue the story.",
       "- Only quote and reference text that already exists in either the SOURCE or TARGET.",
+      "- ALWAYS output valid JSON even if the content is very short or simple.",
+      "- If content is minimal, still create at least one section comparing what exists.",
       "",
       "Your job is ONLY to:",
-      "1) Break the chapter into a small set of meaningful sections (paragraph blocks)",
+      "1) Break the chapter into sections (even if there's just one paragraph, create one section)",
       "2) For each section, recommend which version to keep (SOURCE or TARGET)",
       "3) Explain why, briefly",
       "",
-      "Output ONLY valid JSON (no markdown, no code blocks) with this structure:",
+      "Output ONLY valid JSON (no markdown, no code blocks, no explanatory text) with this structure:",
       '{"sections":[{"id":"section_1","type":"keep_source or keep_target or conflict or similar","sourceText":"exact excerpt from SOURCE","targetText":"exact excerpt from TARGET","recommendation":"source or target","reason":"Short reason","confidence":0.8}],"summary":"One-paragraph summary","overallRecommendation":"Guidance for admin"}',
       "",
       "Rules:",
@@ -86,8 +88,8 @@ serve(async (req) => {
       "- sourceText/targetText must be copied exactly from the inputs (no new wording)",
       "- If something exists only in one version, recommend that version",
       "- If they are similar, recommend TARGET unless SOURCE is clearly better",
-      "- Keep sections reasonable (aim 8-25 for long chapters)",
-      "- Output ONLY valid JSON"
+      "- NEVER refuse to create a plan - always output JSON",
+      "- Output ONLY valid JSON, no prose or explanations"
     ].join("\n");
 
     const userPrompt = `${chapterTitle ? `Chapter: "${chapterTitle}"\n\n` : ''}
@@ -153,6 +155,16 @@ Analyze these versions and create a detailed merge plan. Output only valid JSON.
     try {
       // Clean up the content if it has markdown code blocks (json, html, or other)
       content = content.replace(/```(?:json|html|text)?\n?/gi, '').replace(/```\n?/g, '').trim();
+      
+      // Check if the AI refused and returned prose instead of JSON
+      if (!content.startsWith('{') && !content.startsWith('[')) {
+        console.error('AI returned prose instead of JSON:', content);
+        return new Response(
+          JSON.stringify({ error: 'AI could not generate a merge plan. Please try again.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       const mergePlan: MergePlan = JSON.parse(content);
       
       console.log('Merge plan generated successfully with', mergePlan.sections?.length || 0, 'sections');
