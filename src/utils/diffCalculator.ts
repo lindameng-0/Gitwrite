@@ -6,6 +6,7 @@ export interface DiffBlock {
   targetContent?: string;
   sourceIndex?: number;
   targetIndex?: number;
+  similarity?: number;
 }
 
 export interface ContentDiff {
@@ -15,8 +16,30 @@ export interface ContentDiff {
   targetWordCount: number;
 }
 
+export interface MergeBlock {
+  id: string;
+  type: 'unchanged' | 'conflict' | 'added-a' | 'added-b';
+  contentA?: string;
+  contentB?: string;
+  paragraphIndicesA?: number[];
+  paragraphIndicesB?: number[];
+  similarity?: number;
+  resolved?: boolean;
+  resolution?: 'a' | 'b' | 'both' | 'skip';
+}
+
+export interface SmartMergeResult {
+  blocks: MergeBlock[];
+  unchangedCount: number;
+  conflictCount: number;
+  addedACount: number;
+  addedBCount: number;
+  totalParagraphsA: number;
+  totalParagraphsB: number;
+}
+
 // Normalize HTML content to plain text paragraphs
-function htmlToParagraphs(html: string): string[] {
+export function htmlToParagraphs(html: string): string[] {
   // Remove HTML tags but preserve paragraph breaks
   const text = html
     .replace(/<\/p>/gi, '\n\n')
@@ -63,6 +86,11 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
   return intersection.size / union.size;
 }
 
+// Get word count from text
+export function getWordCount(text: string): number {
+  return text.split(/\s+/).filter(w => w.length > 0).length;
+}
+
 // Find best matching paragraph in target for a source paragraph
 function findBestMatch(
   sourceParagraph: string, 
@@ -84,7 +112,213 @@ function findBestMatch(
   return bestMatch;
 }
 
-// Calculate diff between two HTML content blocks
+// SMART MERGE: Calculate merge blocks between two versions
+// Groups unchanged paragraphs, identifies conflicts, and detects additions
+export function calculateSmartMerge(
+  htmlA: string, 
+  htmlB: string, 
+  unchangedThreshold: number = 0.95
+): SmartMergeResult {
+  const paragraphsA = htmlToParagraphs(htmlA);
+  const paragraphsB = htmlToParagraphs(htmlB);
+  
+  const blocks: MergeBlock[] = [];
+  const usedA = new Set<number>();
+  const usedB = new Set<number>();
+  
+  // Find all matches between paragraphs
+  const matches: { indexA: number; indexB: number; similarity: number }[] = [];
+  
+  for (let a = 0; a < paragraphsA.length; a++) {
+    for (let b = 0; b < paragraphsB.length; b++) {
+      const similarity = calculateStringSimilarity(paragraphsA[a], paragraphsB[b]);
+      if (similarity > 0.3) {
+        matches.push({ indexA: a, indexB: b, similarity });
+      }
+    }
+  }
+  
+  // Sort by similarity (best first) then by position
+  matches.sort((x, y) => {
+    if (Math.abs(x.similarity - y.similarity) > 0.1) return y.similarity - x.similarity;
+    return x.indexA - y.indexA;
+  });
+  
+  // Greedy matching - take best matches first
+  const finalMatches: { indexA: number; indexB: number; similarity: number }[] = [];
+  for (const match of matches) {
+    if (!usedA.has(match.indexA) && !usedB.has(match.indexB)) {
+      finalMatches.push(match);
+      usedA.add(match.indexA);
+      usedB.add(match.indexB);
+    }
+  }
+  
+  // Sort by position in A
+  finalMatches.sort((x, y) => x.indexA - y.indexA);
+  
+  // Reset used sets - we'll rebuild properly now
+  usedA.clear();
+  usedB.clear();
+  
+  // Group consecutive unchanged paragraphs and create blocks
+  let currentUnchangedA: number[] = [];
+  let currentUnchangedB: number[] = [];
+  let lastProcessedA = -1;
+  let lastProcessedB = -1;
+  
+  const flushUnchanged = () => {
+    if (currentUnchangedA.length > 0) {
+      blocks.push({
+        id: `unchanged-${currentUnchangedA[0]}`,
+        type: 'unchanged',
+        contentA: currentUnchangedA.map(i => paragraphsA[i]).join('\n\n'),
+        contentB: currentUnchangedB.map(i => paragraphsB[i]).join('\n\n'),
+        paragraphIndicesA: [...currentUnchangedA],
+        paragraphIndicesB: [...currentUnchangedB],
+        resolved: true,
+        resolution: 'both'
+      });
+      currentUnchangedA = [];
+      currentUnchangedB = [];
+    }
+  };
+  
+  for (const match of finalMatches) {
+    // Add any unmatched paragraphs from A before this match
+    for (let i = lastProcessedA + 1; i < match.indexA; i++) {
+      if (!usedA.has(i)) {
+        flushUnchanged();
+        blocks.push({
+          id: `added-a-${i}`,
+          type: 'added-a',
+          contentA: paragraphsA[i],
+          paragraphIndicesA: [i],
+          resolved: false
+        });
+        usedA.add(i);
+      }
+    }
+    
+    // Add any unmatched paragraphs from B before this match
+    for (let i = lastProcessedB + 1; i < match.indexB; i++) {
+      if (!usedB.has(i)) {
+        flushUnchanged();
+        blocks.push({
+          id: `added-b-${i}`,
+          type: 'added-b',
+          contentB: paragraphsB[i],
+          paragraphIndicesB: [i],
+          resolved: false
+        });
+        usedB.add(i);
+      }
+    }
+    
+    // Handle the matched pair
+    if (match.similarity >= unchangedThreshold) {
+      // Unchanged - group with previous unchanged
+      currentUnchangedA.push(match.indexA);
+      currentUnchangedB.push(match.indexB);
+    } else {
+      // Conflict - flush unchanged and add conflict
+      flushUnchanged();
+      blocks.push({
+        id: `conflict-${match.indexA}-${match.indexB}`,
+        type: 'conflict',
+        contentA: paragraphsA[match.indexA],
+        contentB: paragraphsB[match.indexB],
+        paragraphIndicesA: [match.indexA],
+        paragraphIndicesB: [match.indexB],
+        similarity: match.similarity,
+        resolved: false
+      });
+    }
+    
+    usedA.add(match.indexA);
+    usedB.add(match.indexB);
+    lastProcessedA = match.indexA;
+    lastProcessedB = match.indexB;
+  }
+  
+  // Flush any remaining unchanged
+  flushUnchanged();
+  
+  // Add remaining unmatched from A
+  for (let i = lastProcessedA + 1; i < paragraphsA.length; i++) {
+    if (!usedA.has(i)) {
+      blocks.push({
+        id: `added-a-${i}`,
+        type: 'added-a',
+        contentA: paragraphsA[i],
+        paragraphIndicesA: [i],
+        resolved: false
+      });
+    }
+  }
+  
+  // Add remaining unmatched from B
+  for (let i = lastProcessedB + 1; i < paragraphsB.length; i++) {
+    if (!usedB.has(i)) {
+      blocks.push({
+        id: `added-b-${i}`,
+        type: 'added-b',
+        contentB: paragraphsB[i],
+        paragraphIndicesB: [i],
+        resolved: false
+      });
+    }
+  }
+  
+  // Calculate stats
+  const unchangedCount = blocks.filter(b => b.type === 'unchanged')
+    .reduce((sum, b) => sum + (b.paragraphIndicesA?.length || 0), 0);
+  const conflictCount = blocks.filter(b => b.type === 'conflict').length;
+  const addedACount = blocks.filter(b => b.type === 'added-a').length;
+  const addedBCount = blocks.filter(b => b.type === 'added-b').length;
+  
+  return {
+    blocks,
+    unchangedCount,
+    conflictCount,
+    addedACount,
+    addedBCount,
+    totalParagraphsA: paragraphsA.length,
+    totalParagraphsB: paragraphsB.length
+  };
+}
+
+// Build final content from resolved blocks
+export function buildMergedContent(blocks: MergeBlock[]): string {
+  const paragraphs: string[] = [];
+  
+  for (const block of blocks) {
+    if (block.type === 'unchanged') {
+      // Use version A content for unchanged blocks
+      if (block.contentA) paragraphs.push(block.contentA);
+    } else if (block.resolved) {
+      switch (block.resolution) {
+        case 'a':
+          if (block.contentA) paragraphs.push(block.contentA);
+          break;
+        case 'b':
+          if (block.contentB) paragraphs.push(block.contentB);
+          break;
+        case 'both':
+          if (block.contentA) paragraphs.push(block.contentA);
+          if (block.contentB && block.contentB !== block.contentA) paragraphs.push(block.contentB);
+          break;
+        case 'skip':
+          // Don't include anything
+          break;
+      }
+    }
+  }
+  
+  return paragraphs.map(p => `<p>${p}</p>`).join('\n');
+}
+
+// Calculate diff between two HTML content blocks (legacy function)
 export function calculateDiff(sourceHtml: string, targetHtml: string): ContentDiff {
   const sourceParagraphs = htmlToParagraphs(sourceHtml);
   const targetParagraphs = htmlToParagraphs(targetHtml);
@@ -150,7 +384,8 @@ export function calculateDiff(sourceHtml: string, targetHtml: string): ContentDi
         sourceContent: sourceParagraphs[match.sourceIndex],
         targetContent: targetParagraphs[match.targetIndex],
         sourceIndex: match.sourceIndex,
-        targetIndex: match.targetIndex
+        targetIndex: match.targetIndex,
+        similarity: match.similarity
       });
     }
     
