@@ -197,7 +197,7 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -247,9 +247,9 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
               </Button>
             </div>
 
-            <div className="flex-1 min-h-0 flex gap-4">
+            <div className="flex-1 min-h-0 flex gap-4 overflow-hidden">
               {/* Sections List */}
-              <ScrollArea className={`flex-1 ${showPreview ? 'w-1/2' : ''}`}>
+              <ScrollArea className={`flex-1 h-[400px] ${showPreview ? 'w-1/2' : ''}`}>
                 <div className="space-y-3 pr-4">
                   {mergePlan.sections.map((section, index) => (
                     <Card 
@@ -320,12 +320,12 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
 
               {/* Preview Panel */}
               {showPreview && (
-                <div className="w-1/2 flex flex-col min-h-0">
+                <div className="w-1/2 flex flex-col min-h-0 overflow-hidden">
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                     <Eye className="w-4 h-4" />
                     Merged Preview
                   </h4>
-                  <ScrollArea className="flex-1 border rounded-md p-4">
+                  <ScrollArea className="flex-1 h-[400px] border rounded-md p-4">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       {previewContent.split('\n\n').map((p, i) => (
                         <p key={i}>{p}</p>

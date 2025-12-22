@@ -64,24 +64,31 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert editor analyzing two versions of a story chapter to create a detailed merge plan. Your task is to:
+    const systemPrompt = `You are an expert editor analyzing two versions of a story chapter to create a detailed merge plan.
 
+CRITICAL RULES:
+- You must ONLY use text that exists in the source or target versions
+- NEVER invent, add, or create any new content that doesn't exist in either version
+- For "merge" type sections, you may ONLY combine sentences/paragraphs from the two versions - do not add new words
+- Your job is to help the user decide what to KEEP from each version, not to write new content
+
+Your task is to:
 1. Compare both versions paragraph by paragraph
 2. Identify what's unique, what's similar, and what conflicts
 3. Provide clear recommendations for each section with reasons
-4. Suggest merged content where appropriate
+4. For merged content, only combine existing text from both versions without adding anything new
 
-Output a JSON object with this exact structure:
+Output a JSON object with this exact structure (no markdown, no code blocks, just pure JSON):
 {
   "sections": [
     {
       "id": "section_1",
       "type": "keep_source" | "keep_target" | "merge" | "conflict",
-      "sourceText": "text from source version (if applicable)",
-      "targetText": "text from target version (if applicable)",
+      "sourceText": "exact text from source version",
+      "targetText": "exact text from target version",
       "recommendation": "source" | "target" | "merge",
       "reason": "Brief explanation for this recommendation",
-      "suggestedContent": "Merged text if type is 'merge' or 'conflict'",
+      "suggestedContent": "Combined text using ONLY content from source and target - no new words",
       "confidence": 0.0-1.0
     }
   ],
@@ -90,11 +97,13 @@ Output a JSON object with this exact structure:
 }
 
 Guidelines:
+- NEVER add new content - only use exact text from source or target
+- For "merge" suggestions, combine paragraphs from both but do not rewrite
 - Be specific about what makes each version valuable
 - Consider narrative flow, character consistency, and writing quality
-- For conflicts, always provide a suggested merged version
 - Confidence should reflect how certain you are about the recommendation
-- Keep reasons concise but informative`;
+- Keep reasons concise but informative
+- Output ONLY valid JSON with no markdown formatting`;
 
     const userPrompt = `${chapterTitle ? `Chapter: "${chapterTitle}"\n\n` : ''}
 === SOURCE VERSION (by ${sourceAuthor}, branch: ${sourceBranch}) ===
@@ -157,8 +166,8 @@ Analyze these versions and create a detailed merge plan. Output only valid JSON.
 
     // Parse the JSON response
     try {
-      // Clean up the content if it has markdown code blocks
-      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      // Clean up the content if it has markdown code blocks (json, html, or other)
+      content = content.replace(/```(?:json|html|text)?\n?/gi, '').replace(/```\n?/g, '').trim();
       const mergePlan: MergePlan = JSON.parse(content);
       
       console.log('Merge plan generated successfully with', mergePlan.sections?.length || 0, 'sections');
