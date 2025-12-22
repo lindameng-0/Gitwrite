@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   ChevronDown,
@@ -17,7 +18,9 @@ import {
   ArrowUp,
   ArrowDown,
   Keyboard,
-  FileText
+  FileText,
+  Pencil,
+  Save
 } from 'lucide-react';
 import {
   calculateSmartMerge,
@@ -52,6 +55,8 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
   const [currentConflictIndex, setCurrentConflictIndex] = useState(0);
   const [expandedUnchanged, setExpandedUnchanged] = useState<Set<string>>(new Set());
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
 
   // Calculate smart merge on version change
   useEffect(() => {
@@ -97,10 +102,31 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
   }, [blocks]);
 
   // Resolve a block
-  const resolveBlock = useCallback((blockId: string, resolution: 'a' | 'b' | 'both' | 'skip') => {
+  const resolveBlock = useCallback((blockId: string, resolution: 'a' | 'b' | 'both' | 'skip' | 'custom', customContent?: string) => {
     setBlocks(prev => prev.map(b => 
-      b.id === blockId ? { ...b, resolved: true, resolution } : b
+      b.id === blockId ? { ...b, resolved: true, resolution, customContent } : b
     ));
+    setEditingBlockId(null);
+    setEditContent('');
+  }, []);
+
+  // Start editing a block
+  const startEditing = useCallback((blockId: string, initialContent: string) => {
+    setEditingBlockId(blockId);
+    setEditContent(initialContent);
+  }, []);
+
+  // Save edited content
+  const saveEdit = useCallback((blockId: string) => {
+    if (editContent.trim()) {
+      resolveBlock(blockId, 'custom', editContent.trim());
+    }
+  }, [editContent, resolveBlock]);
+
+  // Cancel editing
+  const cancelEdit = useCallback(() => {
+    setEditingBlockId(null);
+    setEditContent('');
   }, []);
 
   // Bulk actions
@@ -190,6 +216,15 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
             setTimeout(jumpToNextConflict, 100);
           }
           break;
+        case 'e':
+          if (currentBlock && !editingBlockId) {
+            e.preventDefault();
+            const initialContent = currentBlock.type === 'conflict' 
+              ? (currentBlock.contentA || '') 
+              : (currentBlock.contentA || currentBlock.contentB || '');
+            startEditing(currentBlock.id, initialContent);
+          }
+          break;
         case 'a':
           if (e.shiftKey) {
             e.preventDefault();
@@ -206,12 +241,18 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
           e.preventDefault();
           setShowKeyboardHelp(prev => !prev);
           break;
+        case 'escape':
+          if (editingBlockId) {
+            e.preventDefault();
+            cancelEdit();
+          }
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentConflictIndex, unresolvedConflicts, jumpToNextConflict, jumpToPrevConflict, resolveBlock, acceptAllFromA, acceptAllFromB]);
+  }, [currentConflictIndex, unresolvedConflicts, jumpToNextConflict, jumpToPrevConflict, resolveBlock, acceptAllFromA, acceptAllFromB, editingBlockId, startEditing, cancelEdit]);
 
   const toggleUnchangedExpanded = (blockId: string) => {
     setExpandedUnchanged(prev => {
@@ -275,25 +316,113 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
     if (block.type === 'conflict') {
       const wordCountA = getWordCount(block.contentA || '');
       const wordCountB = getWordCount(block.contentB || '');
+      const isEditing = editingBlockId === block.id;
       
       if (block.resolved) {
+        const resolvedContent = block.resolution === 'custom' 
+          ? block.customContent 
+          : block.resolution === 'a' 
+            ? block.contentA 
+            : block.resolution === 'b' 
+              ? block.contentB 
+              : block.resolution === 'both' 
+                ? `${block.contentA}\n\n${block.contentB}` 
+                : '(skipped)';
+        
         return (
           <Card key={block.id} className="p-3 bg-muted/20 border-l-4 border-l-primary/50">
             <div className="flex items-center gap-2 mb-2">
               <Check className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Resolved: Using {block.resolution === 'a' ? versionA.name : block.resolution === 'b' ? versionB.name : block.resolution === 'both' ? 'Both' : 'Skipped'}</span>
+              <span className="text-sm font-medium">
+                Resolved: {block.resolution === 'custom' ? 'Custom edit' : block.resolution === 'a' ? `Using ${versionA.name}` : block.resolution === 'b' ? `Using ${versionB.name}` : block.resolution === 'both' ? 'Both' : 'Skipped'}
+              </span>
               <Button
                 size="sm"
                 variant="ghost"
                 className="ml-auto text-xs h-6"
-                onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, resolved: false, resolution: undefined } : b))}
+                onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, resolved: false, resolution: undefined, customContent: undefined } : b))}
               >
                 Undo
               </Button>
             </div>
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {block.resolution === 'a' ? block.contentA : block.resolution === 'b' ? block.contentB : block.resolution === 'both' ? `${block.contentA}\n\n${block.contentB}` : '(skipped)'}
-            </p>
+            <p className="text-sm text-muted-foreground line-clamp-2">{resolvedContent}</p>
+          </Card>
+        );
+      }
+
+      // Edit mode for conflict
+      if (isEditing) {
+        return (
+          <Card 
+            key={block.id} 
+            id={`block-${block.id}`}
+            className="p-4 border-2 border-primary ring-2 ring-primary/20"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Pencil className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-primary">EDITING</span>
+              <Badge variant="outline" className="text-xs ml-auto">
+                {getWordCount(editContent)} words
+              </Badge>
+            </div>
+            
+            {/* Reference panels */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7">
+                    <ChevronRight className="w-3 h-3 mr-1" />
+                    Reference: {versionA.name}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Card className="p-2 mt-1 bg-blue-50 dark:bg-blue-950/30 text-xs">
+                    {block.contentA}
+                  </Card>
+                </CollapsibleContent>
+              </Collapsible>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7">
+                    <ChevronRight className="w-3 h-3 mr-1" />
+                    Reference: {versionB.name}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Card className="p-2 mt-1 bg-purple-50 dark:bg-purple-950/30 text-xs">
+                    {block.contentB}
+                  </Card>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+            
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="min-h-[120px] mb-3 font-serif"
+              placeholder="Enter your custom text..."
+              autoFocus
+            />
+            
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => saveEdit(block.id)}>
+                <Save className="w-3 h-3 mr-1" /> Save Edit
+              </Button>
+              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <div className="ml-auto flex gap-1">
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setEditContent(block.contentA || '')}>
+                  Load A
+                </Button>
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setEditContent(block.contentB || '')}>
+                  Load B
+                </Button>
+                <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setEditContent(`${block.contentA || ''}\n\n${block.contentB || ''}`)}>
+                  Load Both
+                </Button>
+              </div>
+            </div>
           </Card>
         );
       }
@@ -364,8 +493,16 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
               className="flex-1"
               onClick={() => resolveBlock(block.id, 'both')}
             >
-              <Layers className="w-3 h-3 mr-1" /> Use Both
+              <Layers className="w-3 h-3 mr-1" /> Both
               <kbd className="ml-1 text-xs bg-muted px-1 rounded">3</kbd>
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => startEditing(block.id, block.contentA || '')}
+            >
+              <Pencil className="w-3 h-3 mr-1" /> Edit
+              <kbd className="ml-1 text-xs bg-muted px-1 rounded">E</kbd>
             </Button>
             <Button 
               size="sm" 
@@ -374,7 +511,6 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
               onClick={() => resolveBlock(block.id, 'skip')}
             >
               <X className="w-3 h-3 mr-1" /> Skip
-              <kbd className="ml-1 text-xs bg-muted px-1 rounded">S</kbd>
             </Button>
           </div>
         </Card>
@@ -389,8 +525,10 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
       const colorClasses = isA 
         ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700'
         : 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700';
+      const isEditing = editingBlockId === block.id;
       
       if (block.resolved) {
+        const resolvedContent = block.resolution === 'custom' ? block.customContent : content;
         return (
           <Card key={block.id} className="p-3 bg-muted/20 border-l-4 border-l-primary/50">
             <div className="flex items-center gap-2 mb-2">
@@ -400,20 +538,73 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
                 <Check className="w-4 h-4 text-primary" />
               )}
               <span className="text-sm font-medium">
-                {block.resolution === 'skip' ? 'Skipped' : 'Included'} new content from {version.name}
+                {block.resolution === 'skip' ? 'Skipped' : block.resolution === 'custom' ? 'Custom edit' : 'Included'} {block.resolution !== 'custom' ? `from ${version.name}` : ''}
               </span>
               <Button
                 size="sm"
                 variant="ghost"
                 className="ml-auto text-xs h-6"
-                onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, resolved: false, resolution: undefined } : b))}
+                onClick={() => setBlocks(prev => prev.map(b => b.id === block.id ? { ...b, resolved: false, resolution: undefined, customContent: undefined } : b))}
               >
                 Undo
               </Button>
             </div>
             {block.resolution !== 'skip' && (
-              <p className="text-sm text-muted-foreground line-clamp-2">{content}</p>
+              <p className="text-sm text-muted-foreground line-clamp-2">{resolvedContent}</p>
             )}
+          </Card>
+        );
+      }
+
+      // Edit mode for added block
+      if (isEditing) {
+        return (
+          <Card 
+            key={block.id} 
+            id={`block-${block.id}`}
+            className="p-4 border-2 border-primary ring-2 ring-primary/20"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Pencil className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-primary">EDITING</span>
+              <Badge variant="outline" className="text-xs ml-auto">
+                {getWordCount(editContent)} words
+              </Badge>
+            </div>
+            
+            <Collapsible className="mb-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-start text-xs h-7">
+                  <ChevronRight className="w-3 h-3 mr-1" />
+                  Original from {version.name}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <Card className={`p-2 mt-1 text-xs ${isA ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-purple-50 dark:bg-purple-950/30'}`}>
+                  {content}
+                </Card>
+              </CollapsibleContent>
+            </Collapsible>
+            
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="min-h-[120px] mb-3 font-serif"
+              placeholder="Enter your custom text..."
+              autoFocus
+            />
+            
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => saveEdit(block.id)}>
+                <Save className="w-3 h-3 mr-1" /> Save Edit
+              </Button>
+              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="outline" className="ml-auto text-xs h-7" onClick={() => setEditContent(content || '')}>
+                Reset to Original
+              </Button>
+            </div>
           </Card>
         );
       }
@@ -443,7 +634,13 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
               onClick={() => resolveBlock(block.id, isA ? 'a' : 'b')}
             >
               <Check className="w-3 h-3 mr-1" /> Include
-              <kbd className="ml-1 text-xs bg-white/20 px-1 rounded">{isA ? '1' : '2'}</kbd>
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => startEditing(block.id, content || '')}
+            >
+              <Pencil className="w-3 h-3 mr-1" /> Edit
             </Button>
             <Button 
               size="sm" 
@@ -451,7 +648,6 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
               onClick={() => resolveBlock(block.id, 'skip')}
             >
               <X className="w-3 h-3 mr-1" /> Skip
-              <kbd className="ml-1 text-xs bg-muted px-1 rounded">S</kbd>
             </Button>
           </div>
         </Card>
@@ -541,7 +737,9 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
             <div><kbd className="bg-background px-1 rounded">1</kbd> — Select version A</div>
             <div><kbd className="bg-background px-1 rounded">2</kbd> — Select version B</div>
             <div><kbd className="bg-background px-1 rounded">3</kbd> — Use both versions</div>
+            <div><kbd className="bg-background px-1 rounded">E</kbd> — Edit current conflict</div>
             <div><kbd className="bg-background px-1 rounded">S</kbd> — Skip / exclude</div>
+            <div><kbd className="bg-background px-1 rounded">Esc</kbd> — Cancel editing</div>
             <div><kbd className="bg-background px-1 rounded">Shift+A</kbd> — Accept all from A</div>
             <div><kbd className="bg-background px-1 rounded">Shift+B</kbd> — Accept all from B</div>
           </div>
