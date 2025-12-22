@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,32 +10,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Sparkles,
   Loader2,
   CheckCircle,
   AlertTriangle,
-  ArrowRight,
   Wand2,
   Eye,
   ThumbsUp,
-  ThumbsDown,
-  Merge
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface MergePlanSection {
   id: string;
-  type: 'keep_source' | 'keep_target' | 'merge' | 'conflict';
+  type: 'keep_source' | 'keep_target' | 'conflict' | 'similar' | 'merge';
   sourceText?: string;
   targetText?: string;
   recommendation: 'source' | 'target' | 'merge';
   reason: string;
-  suggestedContent?: string;
   confidence: number;
 }
 
@@ -58,6 +52,10 @@ interface AIMergePlanDialogProps {
   onMergeComplete: (mergedContent: string, note: string) => Promise<void>;
 }
 
+const normalizeChoice = (c: MergePlanSection['recommendation']): 'source' | 'target' => {
+  return c === 'source' ? 'source' : 'target';
+};
+
 const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
   isOpen,
   onClose,
@@ -68,29 +66,33 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
   sourceBranch,
   targetBranch,
   chapterTitle,
-  onMergeComplete
+  onMergeComplete,
 }) => {
   const [mergePlan, setMergePlan] = useState<MergePlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [selectedChoices, setSelectedChoices] = useState<Record<string, 'source' | 'target' | 'merge'>>({});
-  const [showPreview, setShowPreview] = useState(false);
+  const [selectedChoices, setSelectedChoices] = useState<Record<string, 'source' | 'target'>>({});
+  const [showPreview, setShowPreview] = useState(true);
 
   useEffect(() => {
-    if (isOpen && !mergePlan) {
-      generateMergePlan();
-    }
+    if (!isOpen) return;
+
+    // Reset state when opening so reruns don't reuse old plan
+    setMergePlan(null);
+    setSelectedChoices({});
+    setShowPreview(true);
+
+    void generateMergePlan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
-    if (mergePlan) {
-      // Initialize choices with AI recommendations
-      const initialChoices: Record<string, 'source' | 'target' | 'merge'> = {};
-      mergePlan.sections.forEach(section => {
-        initialChoices[section.id] = section.recommendation;
-      });
-      setSelectedChoices(initialChoices);
-    }
+    if (!mergePlan) return;
+    const initialChoices: Record<string, 'source' | 'target'> = {};
+    mergePlan.sections.forEach((section) => {
+      initialChoices[section.id] = normalizeChoice(section.recommendation);
+    });
+    setSelectedChoices(initialChoices);
   }, [mergePlan]);
 
   const generateMergePlan = async () => {
@@ -104,15 +106,15 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
           targetAuthor,
           sourceBranch,
           targetBranch,
-          chapterTitle
-        }
+          chapterTitle,
+        },
       });
 
       if (error) throw error;
 
       if (data?.mergePlan) {
         setMergePlan(data.mergePlan);
-        toast.success('Merge plan generated!');
+        toast.success('Merge plan generated');
       } else {
         throw new Error('No merge plan returned');
       }
@@ -124,45 +126,50 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
     }
   };
 
-  const toggleChoice = (sectionId: string, choice: 'source' | 'target' | 'merge') => {
-    setSelectedChoices(prev => ({
+  const toggleChoice = (sectionId: string, choice: 'source' | 'target') => {
+    setSelectedChoices((prev) => ({
       ...prev,
-      [sectionId]: choice
+      [sectionId]: choice,
     }));
   };
 
   const trustAllAI = () => {
     if (!mergePlan) return;
-    const aiChoices: Record<string, 'source' | 'target' | 'merge'> = {};
-    mergePlan.sections.forEach(section => {
-      aiChoices[section.id] = section.recommendation;
+    const aiChoices: Record<string, 'source' | 'target'> = {};
+    mergePlan.sections.forEach((section) => {
+      aiChoices[section.id] = normalizeChoice(section.recommendation);
     });
     setSelectedChoices(aiChoices);
-    toast.success('Applied all AI recommendations');
+    toast.success('Applied AI recommendations');
   };
 
-  const previewContent = useMemo(() => {
+  const mergedHtml = useMemo(() => {
     if (!mergePlan) return '';
-    
-    return mergePlan.sections.map(section => {
-      const choice = selectedChoices[section.id];
-      if (choice === 'source') {
-        return section.sourceText || '';
-      } else if (choice === 'target') {
-        return section.targetText || '';
-      } else {
-        return section.suggestedContent || section.sourceText || '';
-      }
-    }).filter(Boolean).join('\n\n');
+
+    const cleanChunk = (s: string) => s.replace(/```(?:json|html|text)?\n?/gi, '').replace(/```/g, '').trim();
+
+    const chunks = mergePlan.sections
+      .map((section) => {
+        const choice = selectedChoices[section.id];
+        const raw = choice === 'source' ? (section.sourceText || '') : (section.targetText || '');
+        return raw ? cleanChunk(raw) : '';
+      })
+      .filter(Boolean);
+
+    return chunks.join('\n');
   }, [mergePlan, selectedChoices]);
 
   const handleExecuteMerge = async () => {
+    if (!mergePlan) return;
+
     setIsExecuting(true);
     try {
-      const htmlContent = previewContent.split('\n\n').map(p => `<p>${p}</p>`).join('\n');
-      const note = `AI-assisted merge: ${Object.values(selectedChoices).filter(c => c === 'source').length} from source, ${Object.values(selectedChoices).filter(c => c === 'target').length} from target, ${Object.values(selectedChoices).filter(c => c === 'merge').length} merged`;
-      await onMergeComplete(htmlContent, note);
-      toast.success('Merge completed successfully!');
+      const fromSource = Object.values(selectedChoices).filter((c) => c === 'source').length;
+      const fromTarget = Object.values(selectedChoices).filter((c) => c === 'target').length;
+
+      const note = `AI decision plan (no generation): ${fromSource} sections from source, ${fromTarget} sections from target`;
+      await onMergeComplete(mergedHtml, note);
+      toast.success('Merge completed');
       onClose();
     } catch (error) {
       console.error('Failed to execute merge:', error);
@@ -173,41 +180,37 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
   };
 
   const getConfidenceBadge = (confidence: number) => {
-    if (confidence >= 0.8) {
-      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">High</Badge>;
-    } else if (confidence >= 0.5) {
-      return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Medium</Badge>;
-    } else {
-      return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Low</Badge>;
-    }
+    if (confidence >= 0.8) return <Badge>High</Badge>;
+    if (confidence >= 0.5) return <Badge variant="secondary">Medium</Badge>;
+    return <Badge variant="destructive">Low</Badge>;
   };
 
   const getTypeBadge = (type: MergePlanSection['type']) => {
     switch (type) {
       case 'keep_source':
-        return <Badge variant="outline" className="border-blue-300 text-blue-700">Source Only</Badge>;
+        return <Badge variant="outline">Source Only</Badge>;
       case 'keep_target':
-        return <Badge variant="outline" className="border-purple-300 text-purple-700">Target Only</Badge>;
-      case 'merge':
-        return <Badge variant="outline" className="border-green-300 text-green-700">Can Merge</Badge>;
+        return <Badge variant="outline">Target Only</Badge>;
+      case 'similar':
+        return <Badge variant="outline">Similar</Badge>;
       case 'conflict':
-        return <Badge variant="outline" className="border-red-300 text-red-700">Conflict</Badge>;
+        return <Badge variant="destructive">Conflict</Badge>;
+      default:
+        return <Badge variant="outline">Section</Badge>;
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] max-w-6xl h-[92vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
             AI Merge Plan
-            {chapterTitle && (
-              <Badge variant="outline" className="ml-2">{chapterTitle}</Badge>
-            )}
+            {chapterTitle && <Badge variant="outline" className="ml-2">{chapterTitle}</Badge>}
           </DialogTitle>
           <DialogDescription>
-            Review AI recommendations and customize the merge
+            AI only suggests which version to keep per section — it does not generate new text.
           </DialogDescription>
         </DialogHeader>
 
@@ -220,7 +223,6 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
           </div>
         ) : mergePlan ? (
           <>
-            {/* Summary */}
             <Card className="p-4 bg-muted/30">
               <div className="flex items-start gap-3">
                 <Wand2 className="w-5 h-5 text-primary mt-0.5" />
@@ -231,106 +233,73 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
               </div>
             </Card>
 
-            {/* Action Buttons */}
             <div className="flex items-center justify-between">
               <Button variant="outline" size="sm" onClick={trustAllAI}>
                 <ThumbsUp className="w-4 h-4 mr-2" />
-                Trust All AI
+                Trust AI Picks
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowPreview(!showPreview)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
                 <Eye className="w-4 h-4 mr-2" />
                 {showPreview ? 'Hide Preview' : 'Show Preview'}
               </Button>
             </div>
 
             <div className="flex-1 min-h-0 flex gap-4 overflow-hidden">
-              {/* Sections List */}
-              <ScrollArea className={`flex-1 h-[400px] ${showPreview ? 'w-1/2' : ''}`}>
+              <ScrollArea className={`flex-1 min-h-0 ${showPreview ? 'w-1/2' : ''}`}>
                 <div className="space-y-3 pr-4">
                   {mergePlan.sections.map((section, index) => (
-                    <Card 
-                      key={section.id} 
-                      className={`p-4 ${
-                        section.type === 'conflict' ? 'border-red-300 dark:border-red-700' : ''
-                      }`}
+                    <Card
+                      key={section.id}
+                      className={section.type === 'conflict' ? 'border-destructive/50' : undefined}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Section {index + 1}</span>
-                          {getTypeBadge(section.type)}
-                          {getConfidenceBadge(section.confidence)}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium">Section {index + 1}</span>
+                            {getTypeBadge(section.type)}
+                            {getConfidenceBadge(section.confidence)}
+                          </div>
                         </div>
-                      </div>
 
-                      <p className="text-xs text-muted-foreground mb-3">{section.reason}</p>
+                        <p className="text-xs text-muted-foreground mb-3">{section.reason}</p>
 
-                      {/* Choice Buttons */}
-                      <div className="flex gap-2 flex-wrap">
-                        {section.sourceText && (
-                          <Button
-                            size="sm"
-                            variant={selectedChoices[section.id] === 'source' ? 'default' : 'outline'}
-                            onClick={() => toggleChoice(section.id, 'source')}
-                            className={selectedChoices[section.id] === 'source' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                          >
-                            <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-xs flex items-center justify-center mr-2">S</span>
-                            Source
-                          </Button>
-                        )}
-                        {section.targetText && (
-                          <Button
-                            size="sm"
-                            variant={selectedChoices[section.id] === 'target' ? 'default' : 'outline'}
-                            onClick={() => toggleChoice(section.id, 'target')}
-                            className={selectedChoices[section.id] === 'target' ? 'bg-purple-600 hover:bg-purple-700' : ''}
-                          >
-                            <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 text-xs flex items-center justify-center mr-2">T</span>
-                            Target
-                          </Button>
-                        )}
-                        {section.suggestedContent && (
-                          <Button
-                            size="sm"
-                            variant={selectedChoices[section.id] === 'merge' ? 'default' : 'outline'}
-                            onClick={() => toggleChoice(section.id, 'merge')}
-                            className={selectedChoices[section.id] === 'merge' ? 'bg-green-600 hover:bg-green-700' : ''}
-                          >
-                            <Merge className="w-4 h-4 mr-2" />
-                            AI Merged
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Preview of selected content */}
-                      <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
-                        <p className="line-clamp-3">
-                          {selectedChoices[section.id] === 'source' ? section.sourceText :
-                           selectedChoices[section.id] === 'target' ? section.targetText :
-                           section.suggestedContent || section.sourceText}
-                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {section.sourceText && (
+                            <Button
+                              size="sm"
+                              variant={selectedChoices[section.id] === 'source' ? 'default' : 'outline'}
+                              onClick={() => toggleChoice(section.id, 'source')}
+                            >
+                              S: Source
+                            </Button>
+                          )}
+                          {section.targetText && (
+                            <Button
+                              size="sm"
+                              variant={selectedChoices[section.id] === 'target' ? 'default' : 'outline'}
+                              onClick={() => toggleChoice(section.id, 'target')}
+                            >
+                              T: Target
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </Card>
                   ))}
                 </div>
               </ScrollArea>
 
-              {/* Preview Panel */}
               {showPreview && (
                 <div className="w-1/2 flex flex-col min-h-0 overflow-hidden">
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
                     <Eye className="w-4 h-4" />
                     Merged Preview
                   </h4>
-                  <ScrollArea className="flex-1 h-[400px] border rounded-md p-4">
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
-                      {previewContent.split('\n\n').map((p, i) => (
-                        <p key={i}>{p}</p>
-                      ))}
-                    </div>
+                  <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: mergedHtml }}
+                    />
                   </ScrollArea>
                 </div>
               )}
@@ -353,11 +322,7 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={handleExecuteMerge}
-            disabled={isLoading || isExecuting || !mergePlan}
-            className="bg-gradient-to-r from-green-600 to-emerald-600"
-          >
+          <Button onClick={handleExecuteMerge} disabled={isLoading || isExecuting || !mergePlan}>
             {isExecuting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

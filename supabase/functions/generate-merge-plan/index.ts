@@ -64,46 +64,41 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert editor analyzing two versions of a story chapter to create a detailed merge plan.
+    const systemPrompt = `You are an assistant that compares two versions of the SAME chapter and produces a merge DECISION PLAN for an admin.
 
-CRITICAL RULES:
-- You must ONLY use text that exists in the source or target versions
-- NEVER invent, add, or create any new content that doesn't exist in either version
-- For "merge" type sections, you may ONLY combine sentences/paragraphs from the two versions - do not add new words
-- Your job is to help the user decide what to KEEP from each version, not to write new content
+CRITICAL RULE:
+- DO NOT write any new chapter text.
+- DO NOT rewrite, paraphrase, improve, or "continue" the story.
+- Only quote and reference text that already exists in either the SOURCE or TARGET.
 
-Your task is to:
-1. Compare both versions paragraph by paragraph
-2. Identify what's unique, what's similar, and what conflicts
-3. Provide clear recommendations for each section with reasons
-4. For merged content, only combine existing text from both versions without adding anything new
+Your job is ONLY to:
+1) Break the chapter into a small set of meaningful sections (paragraph blocks)
+2) For each section, recommend which version to keep (SOURCE or TARGET)
+3) Explain why, briefly
 
-Output a JSON object with this exact structure (no markdown, no code blocks, just pure JSON):
+Output ONLY valid JSON (no markdown, no ``` blocks) with this exact structure:
 {
   "sections": [
     {
       "id": "section_1",
-      "type": "keep_source" | "keep_target" | "merge" | "conflict",
-      "sourceText": "exact text from source version",
-      "targetText": "exact text from target version",
-      "recommendation": "source" | "target" | "merge",
-      "reason": "Brief explanation for this recommendation",
-      "suggestedContent": "Combined text using ONLY content from source and target - no new words",
+      "type": "keep_source" | "keep_target" | "conflict" | "similar",
+      "sourceText": "exact excerpt from SOURCE for this section (can be empty if not present)",
+      "targetText": "exact excerpt from TARGET for this section (can be empty if not present)",
+      "recommendation": "source" | "target",
+      "reason": "Short reason for the recommendation",
       "confidence": 0.0-1.0
     }
   ],
-  "summary": "Brief overview of the merge plan",
-  "overallRecommendation": "High-level recommendation for the editor"
+  "summary": "One-paragraph summary of the differences",
+  "overallRecommendation": "One sentence guidance for the admin"
 }
 
-Guidelines:
-- NEVER add new content - only use exact text from source or target
-- For "merge" suggestions, combine paragraphs from both but do not rewrite
-- Be specific about what makes each version valuable
-- Consider narrative flow, character consistency, and writing quality
-- Confidence should reflect how certain you are about the recommendation
-- Keep reasons concise but informative
-- Output ONLY valid JSON with no markdown formatting`;
+Rules:
+- sourceText/targetText must be copied from the inputs (no new wording)
+- If something exists only in one version, recommend that version for that section
+- If they are similar, recommend TARGET unless SOURCE is clearly better
+- Keep the number of sections reasonable (aim 8-25 for long chapters)
+- Output ONLY JSON`;
 
     const userPrompt = `${chapterTitle ? `Chapter: "${chapterTitle}"\n\n` : ''}
 === SOURCE VERSION (by ${sourceAuthor}, branch: ${sourceBranch}) ===
