@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.summarize-merge-request]
 verify_jwt = false
+
+[functions.generate-merge-plan]
+verify_jwt = false
