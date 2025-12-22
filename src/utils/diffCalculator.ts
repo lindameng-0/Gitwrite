@@ -25,7 +25,8 @@ export interface MergeBlock {
   paragraphIndicesB?: number[];
   similarity?: number;
   resolved?: boolean;
-  resolution?: 'a' | 'b' | 'both' | 'skip';
+  resolution?: 'a' | 'b' | 'both' | 'skip' | 'custom';
+  customContent?: string;
 }
 
 export interface SmartMergeResult {
@@ -307,6 +308,9 @@ export function buildMergedContent(blocks: MergeBlock[]): string {
         case 'both':
           if (block.contentA) paragraphs.push(block.contentA);
           if (block.contentB && block.contentB !== block.contentA) paragraphs.push(block.contentB);
+          break;
+        case 'custom':
+          if (block.customContent) paragraphs.push(block.customContent);
           break;
         case 'skip':
           // Don't include anything
