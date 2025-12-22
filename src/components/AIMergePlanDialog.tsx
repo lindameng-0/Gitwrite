@@ -76,6 +76,13 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    
+    // Check if we have content before generating
+    if (!sourceContent || !targetContent) {
+      console.error('Missing content:', { sourceContent: !!sourceContent, targetContent: !!targetContent });
+      toast.error('No content provided for merging. Please ensure both versions have content.');
+      return;
+    }
 
     // Reset state when opening so reruns don't reuse old plan
     setMergePlan(null);
@@ -84,7 +91,7 @@ const AIMergePlanDialog: React.FC<AIMergePlanDialogProps> = ({
 
     void generateMergePlan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, sourceContent, targetContent]);
 
   useEffect(() => {
     if (!mergePlan) return;

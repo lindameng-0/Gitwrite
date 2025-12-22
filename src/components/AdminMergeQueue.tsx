@@ -225,29 +225,57 @@ const AdminMergeQueue: React.FC<AdminMergeQueueProps> = ({
   };
 
   const handleOpenAIMergePlan = async (request: MergeRequestWithDetails) => {
-    // Load source and target content
-    const sourceChapters = await onLoadChaptersFromBranch(request.source_branch_id);
-    const sourceContent = sourceChapters
-      .filter(c => c.content && c.content.trim().length > 0)
-      .map(c => c.content)
-      .join('\n\n');
-
-    // Load main branch content for comparison
-    let targetContent = '';
-    if (mainBranchId) {
-      const targetChapters = await onLoadChaptersFromBranch(mainBranchId);
-      targetContent = targetChapters
+    try {
+      // Load source branch content
+      const sourceChapters = await onLoadChaptersFromBranch(request.source_branch_id);
+      console.log('Source chapters loaded:', sourceChapters.length, sourceChapters);
+      
+      const sourceContent = sourceChapters
         .filter(c => c.content && c.content.trim().length > 0)
         .map(c => c.content)
         .join('\n\n');
-    }
+      
+      console.log('Source content length:', sourceContent.length);
 
-    setAiMergePlanDialog({
-      isOpen: true,
-      request,
-      sourceContent,
-      targetContent: targetContent || '<p>No existing content in main branch</p>'
-    });
+      // Load main branch content for comparison
+      let targetContent = '';
+      if (mainBranchId) {
+        const targetChapters = await onLoadChaptersFromBranch(mainBranchId);
+        console.log('Target chapters loaded:', targetChapters.length, targetChapters);
+        
+        targetContent = targetChapters
+          .filter(c => c.content && c.content.trim().length > 0)
+          .map(c => c.content)
+          .join('\n\n');
+        
+        console.log('Target content length:', targetContent.length);
+      } else {
+        console.log('No mainBranchId provided');
+      }
+
+      if (!sourceContent) {
+        toast({
+          title: "No source content",
+          description: "The source branch has no chapter content to merge.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setAiMergePlanDialog({
+        isOpen: true,
+        request,
+        sourceContent,
+        targetContent: targetContent || '<p>No existing content in main branch</p>'
+      });
+    } catch (error) {
+      console.error('Error loading content for AI merge:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load chapter content for merging.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleOpenVisualDiff = async (request: MergeRequestWithDetails) => {
