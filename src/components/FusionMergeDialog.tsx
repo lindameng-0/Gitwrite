@@ -51,6 +51,7 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
   const [mergedContent, setMergedContent] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [fusionNote, setFusionNote] = useState('');
+  const [step, setStep] = useState<'select' | 'merge'>('select');
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -59,6 +60,7 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
       setSelectedVersionIds(versions.slice(0, 2).map(v => v.request.id));
       setMergedContent('');
       setFusionNote('');
+      setStep('select');
     }
   }, [isOpen, versions]);
 
@@ -166,141 +168,165 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
             )}
           </DialogTitle>
           <DialogDescription>
-            Select two versions to compare. Unchanged content is auto-included; resolve only the conflicts.
+            {step === 'select'
+              ? 'Choose which two versions to merge. Then start the merge to get a larger editing workspace.'
+              : 'Resolve conflicts (you can double-click a side to edit inline).'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Version Selection with Stats */}
-        <div className="border-b border-border pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-medium">Select 2 versions to merge:</h4>
-            {selectedVersions.length >= 2 && similarityMatrix && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <BarChart3 className="w-3 h-3" />
-                {similarityMatrix.map((m, i) => (
-                  <Badge 
-                    key={i} 
-                    variant="outline" 
-                    className={`text-xs ${
-                      m.similarity > 0.7 ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
-                      m.similarity > 0.4 ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                      'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-                    }`}
-                  >
-                    Overall: {Math.round(m.similarity * 100)}% similar
-                  </Badge>
-                ))}
+        {step === 'select' ? (
+          <>
+            {/* Version Selection */}
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-stable pr-2">
+              <div className="pb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium">Select 2 versions to merge:</h4>
+                  {selectedVersions.length >= 2 && similarityMatrix && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <BarChart3 className="w-3 h-3" />
+                      {similarityMatrix.map((m, i) => (
+                        <Badge 
+                          key={i} 
+                          variant="outline" 
+                          className={`text-xs ${
+                            m.similarity > 0.7 ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                            m.similarity > 0.4 ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                            'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                          }`}
+                        >
+                          Overall: {Math.round(m.similarity * 100)}% similar
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {versions.map((version, index) => {
+                    const isSelected = selectedVersionIds.includes(version.request.id);
+                    const selectionOrder = selectedVersionIds.indexOf(version.request.id);
+                    
+                    return (
+                      <Card
+                        key={version.request.id}
+                        className={`p-3 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                            : 'hover:border-muted-foreground/50'
+                        }`}
+                        onClick={() => toggleVersionSelection(version.request.id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                            isSelected && selectionOrder === 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                            isSelected && selectionOrder === 1 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
+                            'bg-muted text-muted-foreground'
+                          }`}>
+                            {isSelected ? (selectionOrder === 0 ? 'A' : 'B') : (index + 1)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{version.request.source_branch?.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <User className="w-3 h-3" />
+                                {version.request.author_name}
+                              </span>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                {version.wordCount.toLocaleString()} words
+                              </span>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <CheckCircle className="w-4 h-4 text-primary ml-auto" />
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {selectedVersionIds.length < 2 && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Select exactly 2 versions to continue
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {versions.map((version, index) => {
-              const isSelected = selectedVersionIds.includes(version.request.id);
-              const selectionOrder = selectedVersionIds.indexOf(version.request.id);
-              
-              return (
-                <Card
-                  key={version.request.id}
-                  className={`p-3 cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                      : 'hover:border-muted-foreground/50'
-                  }`}
-                  onClick={() => toggleVersionSelection(version.request.id)}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                      isSelected && selectionOrder === 0 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                      isSelected && selectionOrder === 1 ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {isSelected ? (selectionOrder === 0 ? 'A' : 'B') : (index + 1)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{version.request.source_branch?.name}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {version.request.author_name}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-3 h-3" />
-                          {version.wordCount.toLocaleString()} words
-                        </span>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <CheckCircle className="w-4 h-4 text-primary ml-auto" />
-                    )}
+            </div>
+
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setStep('merge')}
+                disabled={selectedVersionIds.length !== 2}
+              >
+                Start merge
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <Button size="sm" variant="outline" onClick={() => setStep('select')}>
+                Change versions
+              </Button>
+              <div className="text-xs text-muted-foreground">
+                Merged: {mergedWordCount.toLocaleString()} words
+              </div>
+            </div>
+
+            {/* Smart Merge View */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {versionA && versionB ? (
+                <SmartMergeView
+                  versionA={versionA}
+                  versionB={versionB}
+                  onContentChange={setMergedContent}
+                />
+              ) : (
+                <Card className="h-full flex items-center justify-center border-dashed">
+                  <div className="text-center">
+                    <Layers className="w-12 h-12 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">
+                      Select 2 versions above to start merging
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      The smart merge will auto-include unchanged content and highlight conflicts
+                    </p>
                   </div>
                 </Card>
-              );
-            })}
-          </div>
-          
-          {selectedVersionIds.length < 2 && (
-            <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              Select exactly 2 versions to compare and merge
-            </p>
-          )}
-        </div>
+              )}
+            </div>
 
-        {/* Smart Merge View */}
-        <div className="flex-1 min-h-0 overflow-auto">
-          {versionA && versionB ? (
-            <SmartMergeView
-              versionA={versionA}
-              versionB={versionB}
-              onContentChange={setMergedContent}
-            />
-          ) : (
-            <Card className="h-full flex items-center justify-center border-dashed">
-              <div className="text-center">
-                <Layers className="w-12 h-12 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">
-                  Select 2 versions above to start merging
-                </p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
-                  The smart merge will auto-include unchanged content and highlight conflicts
-                </p>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        {/* Footer with Stats */}
-        <DialogFooter className="pt-4 border-t border-border">
-          <div className="flex-1 flex items-center gap-4 text-xs text-muted-foreground">
-            {selectedVersions.length >= 2 && (
-              <>
-                <span>Merged: {mergedWordCount.toLocaleString()} words</span>
-              </>
-            )}
-          </div>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleComplete}
-            disabled={isProcessing || !mergedContent}
-            className="bg-gradient-to-r from-green-600 to-emerald-600"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Complete Merge
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+            {/* Footer */}
+            <DialogFooter className="pt-4 border-t border-border">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleComplete}
+                disabled={isProcessing || !mergedContent}
+                className="bg-gradient-to-r from-green-600 to-emerald-600"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Complete Merge
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
