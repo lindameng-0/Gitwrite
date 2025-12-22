@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -554,32 +554,55 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
             {analysis && (
               <>
                 <ClassificationBadge classification={analysis.classification} />
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge 
-                        variant="secondary" 
-                        className={`text-xs cursor-help ${analysis.confidence >= 0.8 ? 'bg-green-100 dark:bg-green-900/30' : ''}`}
-                      >
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Use {analysis.recommendation.toUpperCase()} ({Math.round(analysis.confidence * 100)}%)
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs">{analysis.reason}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-xs cursor-help ${analysis.confidence >= 0.8 ? 'bg-green-100 dark:bg-green-900/30' : ''}`}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Use {analysis.recommendation.toUpperCase()} ({Math.round(analysis.confidence * 100)}%)
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">{analysis.reason}</p>
+                  </TooltipContent>
+                </Tooltip>
               </>
             )}
-            {isCurrentConflict && (
-              <Badge className="bg-amber-500 text-white ml-auto">Current</Badge>
-            )}
+
+            <div className="ml-auto flex items-center gap-1">
+              {isCurrentConflict && (
+                <Badge className="bg-amber-500 text-white">Current</Badge>
+              )}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => startEditing(block.id, block.contentA || '')}
+                aria-label="Edit conflict"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground"
+                onClick={() => resolveBlock(block.id, 'skip')}
+                aria-label="Skip conflict"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4 mb-3">
             {/* Version A */}
-            <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 min-h-[180px]">
+            <Card
+              className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 min-h-[180px] cursor-text"
+              onDoubleClick={() => startEditing(block.id, block.contentA || '')}
+              title="Double-click to edit"
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-blue-600 text-white text-xs">A</Badge>
                 <span className="text-sm font-medium">{versionA.name}</span>
@@ -589,7 +612,11 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
             </Card>
             
             {/* Version B */}
-            <Card className="p-4 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 min-h-[180px]">
+            <Card
+              className="p-4 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 min-h-[180px] cursor-text"
+              onDoubleClick={() => startEditing(block.id, block.contentB || '')}
+              title="Double-click to edit"
+            >
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-purple-600 text-white text-xs">B</Badge>
                 <span className="text-sm font-medium">{versionB.name}</span>
@@ -629,22 +656,6 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
               {analysis?.recommendation === 'both' && <Sparkles className="w-3 h-3 mr-1" />}
               <Layers className="w-3 h-3 mr-1" /> Both
               <kbd className="ml-1 text-xs bg-muted px-1 rounded">3</kbd>
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => startEditing(block.id, block.contentA || '')}
-            >
-              <Pencil className="w-3 h-3 mr-1" /> Edit
-              <kbd className="ml-1 text-xs bg-muted px-1 rounded">E</kbd>
-            </Button>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="text-muted-foreground"
-              onClick={() => resolveBlock(block.id, 'skip')}
-            >
-              <X className="w-3 h-3 mr-1" /> Skip
             </Button>
           </div>
         </Card>
@@ -934,12 +945,10 @@ const SmartMergeView: React.FC<SmartMergeViewProps> = ({
         </div>
 
         {/* Blocks */}
-        <div className="flex-1 min-h-0">
-          <ScrollArea className="h-full">
-            <div className="space-y-3 pr-4 pb-4">
-              {blocks.map((block, index) => renderBlock(block, index))}
-            </div>
-          </ScrollArea>
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar scroll-stable pr-4 pb-4">
+          <div className="space-y-3">
+            {blocks.map((block, index) => renderBlock(block, index))}
+          </div>
         </div>
       </div>
     </TooltipProvider>
