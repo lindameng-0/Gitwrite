@@ -98,7 +98,7 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
         author: v.request.author_name,
         branchName: v.request.source_branch?.name || 'Unknown',
         content: v.chapters
-          .filter(c => c.status === 'approved')
+          .filter(c => c.content && c.content.trim().length > 0)
           .map(c => c.content)
           .join('\n\n')
       }));
@@ -153,7 +153,7 @@ const FusionMergeDialog: React.FC<FusionMergeDialogProps> = ({
       authorName: v.request.author_name,
       branchName: v.request.source_branch?.name || 'Unknown',
       paragraphs: v.chapters
-        .filter(c => c.status === 'approved')
+        .filter(c => c.content && c.content.trim().length > 0)
         .flatMap(c => {
           // Split content into paragraphs
           const text = c.content.replace(/<[^>]*>/g, '');

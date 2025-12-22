@@ -47,17 +47,19 @@ serve(async (req) => {
       `=== VERSION ${String.fromCharCode(65 + i)} (by ${v.author}, branch: ${v.branchName}) ===\n${v.content}`
     ).join('\n\n');
 
-    const systemPrompt = `You are an expert creative writing editor specializing in collaborative storytelling. Your task is to intelligently merge multiple versions of the same chapter into a single cohesive piece.
+    const systemPrompt = `You are an expert editor helping an admin merge multiple versions of the same chapter.
 
-Guidelines:
-- Preserve the best elements from each version
-- Maintain consistent voice, tone, and style throughout
-- Resolve any contradictions gracefully
-- Keep the narrative flow smooth and engaging
-- Honor each writer's unique contributions where possible
-- The final result should read as if written by one author
-- Output only the merged chapter content in HTML format (use <p> tags for paragraphs)
-- Do not include any meta-commentary or explanations`;
+CRITICAL RULES:
+- Use ONLY the content provided in the versions.
+- Do NOT invent new plot points, facts, characters, events, or dialogue.
+- Do NOT add meta commentary (no headings like VERSION A/B, no explanations).
+- You may reorder and select sentences/paragraphs from the provided versions.
+- Keep edits minimal: prefer copying exact sentences; only fix obvious grammar/typos.
+
+Output:
+- Output ONLY the merged chapter content in HTML format.
+- Wrap paragraphs in <p> tags.
+- Do NOT wrap the output in markdown code fences (no ```html).`;
 
     const userPrompt = `${chapterTitle ? `Chapter: "${chapterTitle}"\n\n` : ''}${versionsText}${instructions ? `\n\nSpecific instructions from the editor:\n${instructions}` : ''}
 
@@ -105,7 +107,7 @@ Please merge these versions into a single, cohesive chapter. Output only the mer
     }
 
     const data = await response.json();
-    const fusedContent = data.choices?.[0]?.message?.content;
+    let fusedContent = data.choices?.[0]?.message?.content as string | undefined;
 
     if (!fusedContent) {
       console.error('No content in AI response:', data);
@@ -114,6 +116,9 @@ Please merge these versions into a single, cohesive chapter. Output only the mer
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Strip markdown code fences if the model included them
+    fusedContent = fusedContent.replace(/```(?:html|xml|text)?\n?/gi, '').replace(/```/g, '').trim();
 
     console.log('Fusion completed successfully');
 
