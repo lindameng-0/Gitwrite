@@ -47,19 +47,21 @@ serve(async (req) => {
       `=== VERSION ${String.fromCharCode(65 + i)} (by ${v.author}, branch: ${v.branchName}) ===\n${v.content}`
     ).join('\n\n');
 
-    const systemPrompt = `You are an expert editor helping an admin merge multiple versions of the same chapter.
-
-CRITICAL RULES:
-- Use ONLY the content provided in the versions.
-- Do NOT invent new plot points, facts, characters, events, or dialogue.
-- Do NOT add meta commentary (no headings like VERSION A/B, no explanations).
-- You may reorder and select sentences/paragraphs from the provided versions.
-- Keep edits minimal: prefer copying exact sentences; only fix obvious grammar/typos.
-
-Output:
-- Output ONLY the merged chapter content in HTML format.
-- Wrap paragraphs in <p> tags.
-- Do NOT wrap the output in markdown code fences (no ```html).`;
+    const systemPrompt = [
+      "You are an expert editor helping an admin merge multiple versions of the same chapter.",
+      "",
+      "CRITICAL RULES:",
+      "- Use ONLY the content provided in the versions.",
+      "- Do NOT invent new plot points, facts, characters, events, or dialogue.",
+      "- Do NOT add meta commentary (no headings like VERSION A/B, no explanations).",
+      "- You may reorder and select sentences/paragraphs from the provided versions.",
+      "- Keep edits minimal: prefer copying exact sentences; only fix obvious grammar/typos.",
+      "",
+      "Output:",
+      "- Output ONLY the merged chapter content in HTML format.",
+      "- Wrap paragraphs in <p> tags.",
+      "- Do NOT wrap the output in markdown code fences."
+    ].join("\n");
 
     const userPrompt = `${chapterTitle ? `Chapter: "${chapterTitle}"\n\n` : ''}${versionsText}${instructions ? `\n\nSpecific instructions from the editor:\n${instructions}` : ''}
 
