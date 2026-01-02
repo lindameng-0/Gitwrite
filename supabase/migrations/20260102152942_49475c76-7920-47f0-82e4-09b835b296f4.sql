@@ -1,0 +1,40 @@
+-- Update branch names to natural draft names without author names
+UPDATE story_branches SET name = 'Opening Revision' WHERE name = 'Miranda''s Ch1 Version' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Introduction Rewrite' WHERE name = 'Linda''s Ch1 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Discovery Edit' WHERE name = 'Mikayla''s Ch2 Edit' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Revelation Draft' WHERE name = 'Amber''s Ch2 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Journal Revision' WHERE name = 'Abigail''s Ch3 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Secrets Rewrite' WHERE name = 'Miranda''s Ch3 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'First Sign Edit' WHERE name = 'Linda''s Ch4 Version' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Warning Draft' WHERE name = 'Mikayla''s Ch4 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Gathering Draft' WHERE name = 'Amber''s Ch5 Edit' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Storm Revision' WHERE name = 'Abigail''s Ch5 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Storm Alternative' WHERE name = 'Miranda''s Ch5 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Vision Rewrite' WHERE name = 'Linda''s Ch6 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Glimpse Draft' WHERE name = 'Mikayla''s Ch6 Version' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Confrontation Edit' WHERE name = 'Amber''s Ch7 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Showdown Draft' WHERE name = 'Abigail''s Ch7 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Sacrifice Revision' WHERE name = 'Miranda''s Ch8' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Sacrifice Alternative' WHERE name = 'Linda''s Ch8 Edit' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Sacrifice Rewrite' WHERE name = 'Mikayla''s Ch8 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Aftermath Draft' WHERE name = 'Amber''s Ch9 Version' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Aftermath Edit' WHERE name = 'Abigail''s Ch9 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Return Revision' WHERE name = 'Miranda''s Ch10 Alt' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Return Alternative' WHERE name = 'Linda''s Ch10 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Return Rewrite' WHERE name = 'Mikayla''s Ch10 Edit' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Homecoming Draft' WHERE name = 'Amber''s Ch10 Version' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'New Direction' WHERE name = 'Miranda''s New Direction' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Alternative Path' WHERE name = 'Abigail''s Alternative' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Unfinished Draft' WHERE name = 'Linda''s Ch11 WIP' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'New Take' WHERE name = 'Mikayla''s Ch11 Start' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Revelation Sketch' WHERE name = 'Amber''s Ch11 Idea' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Grand Finale' WHERE name = 'Amber''s Finale' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Final Chapter' WHERE name = 'Victor''s Conclusion' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Ending Draft' WHERE name = 'Linda''s Ch12 Draft' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+UPDATE story_branches SET name = 'Conclusion Idea' WHERE name = 'Abigail''s Ch12 WIP' AND story_id = 'df070c88-cf06-464e-9f92-841e14dc2d5f';
+
+-- Also update the merge request chapter_title field to match
+UPDATE merge_requests SET chapter_title = 'New Direction' WHERE chapter_title = 'Miranda''s New Direction';
+UPDATE merge_requests SET chapter_title = 'Alternative Path' WHERE chapter_title = 'Abigail''s Alternative';
+UPDATE merge_requests SET chapter_title = 'Grand Finale' WHERE chapter_title = 'Amber''s Finale';
+UPDATE merge_requests SET chapter_title = 'Final Chapter' WHERE chapter_title = 'Victor''s Conclusion';
