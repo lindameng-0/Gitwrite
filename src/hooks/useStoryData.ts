@@ -435,6 +435,37 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     }
   };
 
+  // Delete a chapter (owner or admin only)
+  const deleteChapter = async (chapterId: string): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('chapters')
+        .delete()
+        .eq('id', chapterId);
+
+      if (error) throw error;
+
+      // Update local state
+      setChapters(prev => prev.filter(c => c.id !== chapterId));
+      setMainBranchChapters(prev => prev.filter(c => c.id !== chapterId));
+      
+      // If deleted the active chapter, switch to first available
+      if (chapterId === activeChapter) {
+        const remaining = chapters.filter(c => c.id !== chapterId);
+        if (remaining.length > 0) {
+          setActiveChapter(remaining[0].id);
+        } else {
+          setActiveChapter('');
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting chapter:', error);
+      return false;
+    }
+  };
+
   const submitChapterForReview = async (chapterId: string) => {
     try {
       const { error } = await supabase
@@ -1228,6 +1259,7 @@ export const useStoryData = (studioId?: string | null, initialBranchId?: string 
     setActiveChapter,
     updateChapterContent,
     createNewChapter,
+    deleteChapter,
     createSavePoint,
     submitChapterForReview,
     reviewChapter,

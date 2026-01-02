@@ -20,6 +20,7 @@ interface StoryEditorProps {
   activeChapter: string;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
+  onDeleteChapter?: (chapterId: string) => Promise<boolean>;
   onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
@@ -53,6 +54,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
   activeChapter,
   onUpdateChapterContent,
   onCreateChapter,
+  onDeleteChapter,
   onCreateSavePoint,
   onSubmitChapterForReview,
   onReviewChapter,
@@ -119,6 +121,7 @@ const StoryEditor: React.FC<StoryEditorProps> = ({
             activeBranch={activeBranch}
             activeChapter={activeChapter}
             onCreateChapter={onCreateChapter}
+            onDeleteChapter={onDeleteChapter}
             onSwitchBranch={onSwitchBranch}
             onSwitchChapter={onSwitchChapter}
             onForkFromChapter={onForkFromChapter}
