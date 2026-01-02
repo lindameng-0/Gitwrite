@@ -54,6 +54,7 @@ const WriterStudio = () => {
     setActiveChapter,
     updateChapterContent,
     createNewChapter,
+    deleteChapter,
     createSavePoint,
     submitChapterForReview,
     reviewChapter,
@@ -172,6 +173,7 @@ const WriterStudio = () => {
           activeChapter={activeChapter}
           onUpdateChapterContent={updateChapterContent}
           onCreateChapter={createNewChapter}
+          onDeleteChapter={deleteChapter}
           onCreateSavePoint={createSavePoint}
           onSubmitChapterForReview={submitChapterForReview}
           onReviewChapter={reviewChapter}

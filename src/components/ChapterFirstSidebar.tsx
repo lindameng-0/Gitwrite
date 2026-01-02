@@ -46,6 +46,7 @@ interface ChapterFirstSidebarProps {
   activeBranch: string;
   activeChapter: string;
   onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
+  onDeleteChapter?: (chapterId: string) => Promise<boolean>;
   onSwitchBranch: (branchId: string) => void;
   onSwitchChapter: React.Dispatch<React.SetStateAction<string>>;
   onForkFromChapter?: (name: string, forkChapterId: string) => Promise<string | null>;
@@ -97,6 +98,7 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
   activeBranch,
   activeChapter,
   onCreateChapter,
+  onDeleteChapter,
   onSwitchBranch,
   onSwitchChapter,
   onForkFromChapter,
@@ -257,96 +259,141 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
             // Check if current draft is viewing this chapter's fork point
             const isDraftForkPoint = !isOnMainBranch && currentBranch?.fork_point_order === chapter.chapter_order;
 
+            const canDelete = isAdmin || chapter.author_name === currentUserName;
+            
             return (
               <div key={chapter.id}>
                 <Collapsible open={isExpanded} onOpenChange={() => hasBranches && toggleChapterExpanded(chapter.id)}>
-                  <div
-                    className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
-                      isChapterActive 
-                        ? 'bg-primary/10 border border-primary/30' 
-                        : isDraftForkPoint
-                          ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'
-                          : 'hover:bg-muted/50 border border-transparent'
-                    }`}
-                    onClick={() => {
-                      if (isOnMainBranch) {
-                        // On main branch, just switch chapter
-                        onSwitchChapter(chapter.id);
-                      } else if (draftChapter) {
-                        // On draft, switch to the draft's version of this chapter
-                        onSwitchChapter(draftChapter.id);
-                      } else {
-                        // No draft version exists, switch to main branch and show this chapter
-                        if (mainBranch) {
-                          onSwitchBranch(mainBranch.id);
-                        }
-                        onSwitchChapter(chapter.id);
-                      }
-                    }}
-                  >
-                    {/* Expand Toggle */}
-                    {hasBranches ? (
-                      <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
-                          {isExpanded ? (
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          ) : (
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
-                      </CollapsibleTrigger>
-                    ) : (
-                      <div className="w-5" />
-                    )}
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <div
+                        className={`group flex items-center gap-2 p-2.5 rounded-lg cursor-pointer transition-all ${
+                          isChapterActive 
+                            ? 'bg-primary/10 border border-primary/30' 
+                            : isDraftForkPoint
+                              ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'
+                              : 'hover:bg-muted/50 border border-transparent'
+                        }`}
+                        onClick={() => {
+                          if (isOnMainBranch) {
+                            // On main branch, just switch chapter
+                            onSwitchChapter(chapter.id);
+                          } else if (draftChapter) {
+                            // On draft, switch to the draft's version of this chapter
+                            onSwitchChapter(draftChapter.id);
+                          } else {
+                            // No draft version exists, switch to main branch and show this chapter
+                            if (mainBranch) {
+                              onSwitchBranch(mainBranch.id);
+                            }
+                            onSwitchChapter(chapter.id);
+                          }
+                        }}
+                      >
+                        {/* Expand Toggle */}
+                        {hasBranches ? (
+                          <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+                              {isExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                        ) : (
+                          <div className="w-5" />
+                        )}
 
-                    {/* Chapter Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {chapter.chapter_order}.
-                        </span>
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {chapter.title}
-                        </span>
-                        {/* Indicator if viewing draft version */}
-                        {!isOnMainBranch && draftChapter && (
-                          <Pencil className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                        {/* Chapter Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {chapter.chapter_order}.
+                            </span>
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {chapter.title}
+                            </span>
+                            {/* Indicator if viewing draft version */}
+                            {!isOnMainBranch && draftChapter && (
+                              <Pencil className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Status & Drafts Indicator */}
+                        <div className="flex items-center gap-1.5">
+                          {isDraftForkPoint && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
+                              Fork Point
+                            </Badge>
+                          )}
+                          {hasBranches && (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
+                              <Layers className="w-3 h-3 mr-1" />
+                              {chapterBranches.length} {chapterBranches.length === 1 ? 'draft' : 'drafts'}
+                            </Badge>
+                          )}
+                          {getStatusIcon(chapter.status)}
+                        </div>
+
+                        {/* Create Draft Button (on hover) */}
+                        {onForkFromChapter && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setForkingChapterId(chapter.id);
+                            }}
+                            title="Create new draft from this chapter"
+                          >
+                            <FilePlus className="w-3.5 h-3.5" />
+                          </Button>
                         )}
                       </div>
-                    </div>
-
-                    {/* Status & Drafts Indicator */}
-                    <div className="flex items-center gap-1.5">
-                      {isDraftForkPoint && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700">
-                          Fork Point
-                        </Badge>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => onForkFromChapter && setForkingChapterId(chapter.id)}>
+                        <FilePlus className="w-4 h-4 mr-2" />
+                        Create Draft from Chapter
+                      </ContextMenuItem>
+                      {canDelete && onDeleteChapter && (
+                        <>
+                          <ContextMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <ContextMenuItem 
+                                className="text-destructive focus:text-destructive"
+                                onSelect={(e) => e.preventDefault()}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete Chapter
+                              </ContextMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete "{chapter.title}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. The chapter and all its content will be permanently deleted.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  onClick={() => onDeleteChapter(chapter.id)}
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )}
-                      {hasBranches && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5">
-                          <Layers className="w-3 h-3 mr-1" />
-                          {chapterBranches.length} {chapterBranches.length === 1 ? 'draft' : 'drafts'}
-                        </Badge>
-                      )}
-                      {getStatusIcon(chapter.status)}
-                    </div>
-
-                    {/* Create Draft Button (on hover) */}
-                    {onForkFromChapter && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setForkingChapterId(chapter.id);
-                        }}
-                        title="Create new draft from this chapter"
-                      >
-                        <FilePlus className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
+                    </ContextMenuContent>
+                  </ContextMenu>
 
                   {/* Create Draft Form */}
                   {forkingChapterId === chapter.id && (

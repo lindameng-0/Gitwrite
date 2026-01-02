@@ -18,6 +18,7 @@ interface StoryBranchStudioProps {
   activeChapter: string;
   onUpdateChapterContent: (chapterId: string, content: string) => Promise<void>;
   onCreateChapter: (title: string, chapterOrder?: number) => Promise<string | null>;
+  onDeleteChapter?: (chapterId: string) => Promise<boolean>;
   onCreateSavePoint: (title: string, description?: string) => Promise<string | null>;
   onSubmitChapterForReview: (chapterId: string) => Promise<void>;
   onReviewChapter: (chapterId: string, status: 'approved' | 'changes_requested', feedback?: string) => Promise<void>;
@@ -51,6 +52,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
   activeChapter,
   onUpdateChapterContent,
   onCreateChapter,
+  onDeleteChapter,
   onCreateSavePoint,
   onSubmitChapterForReview,
   onReviewChapter,
@@ -150,7 +152,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
             </TabsContent>
 
             <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
-              <MainStoryPreview chapters={mainBranchChapters} />
+              <MainStoryPreview chapters={mainBranchChapters} onCreateChapter={onCreateChapter} isAdmin={isAdmin} />
             </TabsContent>
 
             <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
@@ -207,7 +209,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
 
         <div className="flex-1 min-h-0 overflow-hidden">
           <TabsContent value="main-story" className="h-full min-h-0 m-0 overflow-hidden">
-            <MainStoryPreview chapters={mainBranchChapters} />
+            <MainStoryPreview chapters={mainBranchChapters} onCreateChapter={onCreateChapter} />
           </TabsContent>
 
           <TabsContent value="editor" className="h-full min-h-0 m-0 overflow-hidden">
@@ -220,6 +222,7 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               activeChapter={activeChapter}
               onUpdateChapterContent={onUpdateChapterContent}
               onCreateChapter={onCreateChapter}
+              onDeleteChapter={onDeleteChapter}
               onCreateSavePoint={onCreateSavePoint}
               onSubmitChapterForReview={onSubmitChapterForReview}
               onReviewChapter={onReviewChapter}
