@@ -186,6 +186,10 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
                 <FileText className="w-4 h-4" />
                 Chapter Editor
               </TabsTrigger>
+              <TabsTrigger value="branches" className="flex items-center gap-2">
+                <GitBranch className="w-4 h-4" />
+                Visualizer
+              </TabsTrigger>
             </TabsList>
             
             <div className="flex items-center gap-3">
@@ -243,6 +247,17 @@ const StoryBranchStudio: React.FC<StoryBranchStudioProps> = ({
               isAdmin={false}
               currentUserName={currentUserName}
               storyId={storyId}
+            />
+          </TabsContent>
+
+          <TabsContent value="branches" className="h-full min-h-0 m-0 overflow-hidden">
+            <BranchVisualizer 
+              ref={branchVisualizerRef}
+              branches={branches}
+              chapters={chapters}
+              activeBranch={activeBranch}
+              onBranchSelect={onSwitchBranch}
+              onSaveBranchPosition={onSaveBranchPosition}
             />
           </TabsContent>
         </div>
