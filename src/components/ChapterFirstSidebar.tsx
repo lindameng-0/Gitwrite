@@ -202,16 +202,15 @@ const ChapterFirstSidebar: React.FC<ChapterFirstSidebarProps> = ({
             <FileText className="w-4 h-4" />
             Chapters
           </h3>
-          {isAdmin && (
-            <Button
-              onClick={() => setIsCreatingChapter(true)}
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          )}
+          <Button
+            onClick={() => setIsCreatingChapter(true)}
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            title="Add new chapter"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
         </div>
 
         {isCreatingChapter && (
