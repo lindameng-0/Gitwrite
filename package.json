@@ -1,5 +1,5 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "gitwrite",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint src/workspace src/App.tsx src/main.tsx",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -71,7 +73,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@eslint/js": "^9.9.0",
+    "@playwright/cli": "^0.1.21",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.5.5",
     "@types/react": "^18.3.3",
@@ -84,7 +88,9 @@
     "globals": "^15.9.0",
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
+    "prettier": "^3.9.9",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"
